@@ -6,21 +6,22 @@ from datetime import datetime, timedelta
 import numpy as np
 import pickle
 import time
-import datetime
+from PIL import Image
 """"
 creates a csv file containing information on all the faces
 uses the information from the dataset's .mat files, and applies filtering to keep only good quality data
 
 Params
     datasetDir: the directory of the IMDBWIKI dataset on the computer's hard drive
-    agetRange: a vector containing the min and max age to keep. Helps trim out outlier errors in the dataset
-    minScore: the minimum face score to keep. Removes bad quality data
-    filterGender: a bool that determines whether to trim out faces with unlabeled geneders
+    agetRange:  a vector containing the min and max age to keep. Helps trim out outlier errors in the dataset
+    minScore:   the minimum face score to keep. Removes bad quality data
+    filterGender:   a bool that determines whether to trim out faces with unlabeled geneders
+    filterRGB:  determines whether we should filter out b/w images (or other encodings)
 
 Returns
     0: the dataframe the .csv represents
 """
-def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=0, filterGender=True):
+def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=0, filterGender=True, filterRGB=True):
     combinedDf = None
     for fileType in ["wiki", "imdb"]:
         matFile = loadmat(os.path.join(datasetDir, fileType+"_crop", fileType+".mat"))
@@ -33,15 +34,20 @@ def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=
         faceScore = matFile[fileType]["face_score"][0][0][0]
         faceScore2 = matFile[fileType]["second_face_score"][0][0][0]
 
-        birthYear = np.zeros(dateOfBirth.shape)
-        age = np.zeros(dateOfBirth.shape)
+        numRows = dateOfBirth.shape[0]
 
-        for i in range(0, dateOfBirth.shape[0]):
+        birthYear = np.zeros(numRows)
+        age = np.zeros(numRows)
+        imFormat = np.copy(name)
+        imHeight = np.zeros(numRows, dtype=int)
+        imWidth = np.zeros(numRows, dtype=int)
+        imRes = np.zeros(numRows, dtype=int)
+
+        for i in range(0, numRows):
             # add age/birth year
             matlabBD = dateOfBirth[i]
             if matlabBD < 366:
                 matlabBD = 400
-
             pythonBd = datetime.fromordinal(int(matlabBD)) + timedelta(days=int(matlabBD) % 1) - timedelta(days=366)
             birthYear[i] = pythonBd.year
             age[i] = yearTaken[i] - pythonBd.year
@@ -53,10 +59,21 @@ def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=
                 name[i] = ""
             # fix path
             pathArr = path[i]
-            path[i] = os.path.join(datasetDir, fileType + "_crop", pathArr[0])
+            fullPath = os.path.join(datasetDir, fileType + "_crop", pathArr[0])
+            path[i] = fullPath
+            #add image data
+            img = Image.open(fullPath)
+            imFormat[i] = img.mode
+            w, h = img.size
+            imHeight[i] = w
+            imWidth[i] = h
+            imRes[i] = w * h
+            if i % 10000 == 0:
+                print(str(i) + "/" + str(numRows))
 
         dataTable = {"name": name, "age": age, "birthday": birthYear, "year_taken": yearTaken, "isMale": gender,
-                     "face_location": faceLocation, "face_score": faceScore, "second_face": faceScore2, "path": path}
+                     "face_location": faceLocation, "face_score": faceScore, "second_face": faceScore2, "path": path,
+                     "image_format":imFormat, "image_height":imHeight, "image_width":imWidth, "image_resolution":imRes}
         # remove bad data
         df = pd.DataFrame(dataTable)
         if combinedDf is None:
@@ -78,6 +95,10 @@ def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=
         combinedDf = combinedDf[combinedDf.isMale.notnull()]
         numLeft = len(combinedDf.index)
         print("filtered null sex: ", numLeft, " images remaining")
+    if filterRGB:
+        combinedDf = combinedDf[combinedDf.image_format == "RGB"]
+        numLeft = len(combinedDf.index)
+        print("filtered non-RGB images: ", numLeft, " images remaining")
     return combinedDf
 
 """
@@ -218,6 +239,7 @@ if __name__ == "__main__":
         print("creating " + csvPath + "...")
         csvdata = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
         csvdata.to_csv(csvPath, index=False)
+        print(csvPath + " saved")
 
     if os.path.exists(indicesPath):
         print("restoring indices data...")
@@ -228,6 +250,7 @@ if __name__ == "__main__":
         indices = createIndices(csvdata)
         file = open(indicesPath, "wb")
         pickle.dump(indices, file)
+        print(indicesPath + " saved")
     file.close()
 
 

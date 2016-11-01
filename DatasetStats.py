@@ -34,13 +34,13 @@ def findImageSizeRange(csvData):
     maxRes = 0
     minResStr = ""
     maxResStr = ""
-    bwImages = 0
+    sumRes = 0
     for i in range(numRows):
-        path = csvdata["path"][i]
-        im = Image.open(path)
-        width, height = im.size
-        res = width * height
+        width = csvData["image_width"][i]
+        height = csvdata["image_height"][i]
         resStr = "[" + str(width) + ", " + str(height) + "]"
+        res = height * width
+        sumRes = sumRes + res
 
         if res > maxRes:
             maxRes = res
@@ -50,7 +50,8 @@ def findImageSizeRange(csvData):
             minResStr = resStr
         if i % 100000 == 0:
             print (str(i) + "/" + str(numRows))
-    return "min:" + minResStr + " max:" + maxResStr + "\n bw images: " + str(bwImages)
+    avgRes = sumRes / numRows
+    return "min:" + minResStr + " max:" + maxResStr + " average resolution: " + str(avgRes)
 
 
 if __name__ == "__main__":
@@ -65,6 +66,7 @@ if __name__ == "__main__":
         print("creating " + csvPath + "...")
         csvdata = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
         csvdata.to_csv(csvPath, index=False)
+        print(csvPath + " saved")
 
     if os.path.exists(indicesPath):
         print("restoring indices data...")
@@ -75,6 +77,7 @@ if __name__ == "__main__":
         indices = createIndices(csvdata)
         file = open(indicesPath, "wb")
         pickle.dump(indices, file)
+        print(indicesPath + " saved")
     file.close()
 
     print ("finding image size range...")

@@ -28,6 +28,15 @@ def statsCsv(csvdata, ageRange=[15, 100], outPath="stats.csv"):
     df.to_csv(outPath)
     return df
 
+"""
+Finds the min and max resolution images in the dataset
+
+Params
+    csvData:    a pandas dataframe from the csv file we are using as out dataset
+
+Returns
+    0:  a string containing information about the min and max res images
+"""
 def findImageSizeRange(csvData):
     numRows = len(csvData.index)
     minRes = float("inf")
@@ -50,9 +59,7 @@ def findImageSizeRange(csvData):
             minResStr = resStr
         if i % 100000 == 0:
             print (str(i) + "/" + str(numRows))
-    avgRes = sumRes / numRows
-    return "min:" + minResStr + " max:" + maxResStr + " average resolution: " + str(avgRes)
-
+    return "min:" + minResStr + " max:" + maxResStr
 
 if __name__ == "__main__":
     if len(sys.argv) == 3:
@@ -62,17 +69,16 @@ if __name__ == "__main__":
         if os.path.exists(csvPath) and os.path.exists(indicesPath):
             print("restoring csv data...")
             csvdata = pd.read_csv(csvPath)
-            csvdata = _filterDataframe(csvdata)
 
             print("restoring indices data...")
             file = open(indicesPath, "rb")
             indices = pickle.load(file)
             file.close()
 
-
             print ("finding image size range...")
             imgRange = findImageSizeRange(csvdata)
             print (imgRange)
+
         else:
             print("one or both files not found")
     else:

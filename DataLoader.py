@@ -116,10 +116,12 @@ def createIndices(dataframe, ageRangeLimits=[30, 40, 50, 60, 70, 80, 101], fileN
     pickle._dump(resultDict, file)
     return  resultDict
 
-def getBatch(indices, dataframe, batchSize=1000, imageSize=[250, 250, 3]):
+def getBatch(indices, dataframe, batchSize=100000, imageSize=[250, 250, 3], offsetVec=None):
     ageBins = indices["AgeBinLimits"]
     numBins = len(ageBins)
     numPerCat = int(round(batchSize / (numBins * 2), 0))
+    if offsetVec is None:
+        offsetVec = np.zeros([numBins, 2], dtype=int)
     batchIndices = np.zeros([numPerCat * numBins * 2], dtype=int)
     menLists = indices["Men"]
     womenLists = indices["Women"]
@@ -146,14 +148,16 @@ def getBatch(indices, dataframe, batchSize=1000, imageSize=[250, 250, 3]):
         sexArr[i] = sex
         ageArr[i] = age
         i = i + 1
-    return {"image":imageArr, "sex":sexArr, "age":ageArr}
+    return {"image":imageArr, "sex":sexArr, "age":ageArr}, offsetVec
 
 
 datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
 
 dataframe = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
 indices = createIndices(dataframe)
-getBatch(indices, dataframe)
+batchData, offset = getBatch(indices, dataframe)
+while 1:
+    batchData, offset = getBatch(indices, dataframe, offsetVec=offset)
 
 
 

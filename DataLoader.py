@@ -4,12 +4,13 @@ from scipy.misc import imread, imresize
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
+import pickle
 
 
 def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=0, filterGender=True):
     #if file exists, read from disk instead of generating
     if os.path.exists(outPath):
-        print("restoring saved file...")
+        print("restoring saved csv...")
         return pd.read_csv(outPath)
     else:
         combinedDf = None
@@ -84,15 +85,43 @@ def getStats(dataframe, ageRange, outPath="stats.csv"):
         age = int(dataframe["age"][i])
         adjustedAge = age - ageRange[0]
         resultsArr[adjustedAge, sex] = resultsArr[adjustedAge, sex] + 1
-    df = pd.DataFrame(resultsArr, columns=["male", "female"], index=np.arange(ageRange[0], ageRange[1]+1))
+    df = pd.DataFrame(resultsArr, columns=["female", "male"], index=np.arange(ageRange[0], ageRange[1]+1))
     df.to_csv(outPath)
     return df
+
+def createIndices(dataframe, ageRangeLimits=[30, 40, 50, 60, 70, 80, 101], fileName="indices.p"):
+    if os.path.exists(fileName):
+        file = open(fileName, "rb")
+        print("restoring saved indices...")
+        return  pickle.load(file)
+
+    numRows = len(dataframe.index)
+    menArr = [[] for x in ageRangeLimits]
+    womenArr = [[] for x in ageRangeLimits]
+    for i in range(numRows):
+        male = bool(dataframe["isMale"][i])
+        age = int(dataframe["age"][i])
+        binNum = 0
+        for binLimit in ageRangeLimits:
+            if age < binLimit:
+                break
+            else:
+                binNum = binNum + 1
+        if male:
+            menArr[binNum] += [i]
+        else:
+            womenArr[binNum] += [i]
+    resultDict = {"Men":menArr, "Women":womenArr, "AgeBinLimits":ageRangeLimits}
+    file = open( fileName, "wb" )
+    pickle._dump(resultDict, file)
+    return  resultDict
 
 
 datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
 
 dataframe = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
-getStats(dataframe, [15, 100])
+indices = createIndices(dataframe)
+
 
 
 

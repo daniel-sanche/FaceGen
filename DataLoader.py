@@ -112,20 +112,20 @@ Men and Women contains a list of lists, where each element represents an age bin
 and contains a list of indices of images that fall into that bin
 
 Params
-    dataframe:      the dataframe of the .csv file of good quality faces we are working with
+    csvdata:      the dataframe of the .csv file of good quality faces we are working with
     ageRangeLimits: a vector describing all the age ranges we are breaking the data into
                     each item describes the ages < this value that will belong in this bin
 
 Returns:
     0:  a dictionary containing the indices
 """
-def createIndices(dataframe, ageRangeLimits=[30, 40, 50, 60, 70, 80, 101]):
-    numRows = len(dataframe.index)
+def createIndices(csvdata, ageRangeLimits=[30, 40, 50, 60, 70, 80, 101]):
+    numRows = len(csvdata.index)
     menArr = [[] for x in ageRangeLimits]
     womenArr = [[] for x in ageRangeLimits]
     for i in range(numRows):
-        male = bool(dataframe["isMale"][i])
-        age = int(dataframe["age"][i])
+        male = bool(csvdata["isMale"][i])
+        age = int(csvdata["age"][i])
         binNum = 0
         for binLimit in ageRangeLimits:
             if age < binLimit:
@@ -175,7 +175,7 @@ returned, the function can be called again to iterate through the data in batche
 
 Params
     indices:    the indices dict for the data
-    dataframe:  the pandas dataframe from the .csv of faces we are using
+    csvdata:    the pandas dataframe from the .csv of faces we are using
     batchSize:  the size of the batch we want to extract
     imageSize:  the size of the images to extract
     prevState:  the state containing the last indices we extracted, so we can get the next batch
@@ -186,7 +186,7 @@ Returns
     1:  the new state, whcih can be passed back in to get the next batch
     2:  a bool indicating whether we have visited all images at least one (since the start of the state)
 """
-def getBatch(indices, dataframe, batchSize=1000, imageSize=[250, 250, 3], prevState=None):
+def getBatch(indices, csvdata, batchSize=1000, imageSize=[250, 250, 3], prevState=None):
     ageBins = indices["AgeBinLimits"]
     numBins = len(ageBins)
     numPerCat = int(round(batchSize / (numBins * 2), 0))
@@ -214,9 +214,9 @@ def getBatch(indices, dataframe, batchSize=1000, imageSize=[250, 250, 3], prevSt
     ageArr = np.zeros([batchSize, 1], dtype=int)
     i = 0
     for idx in batchIndices:
-        path = dataframe["path"][idx]
-        age = dataframe["age"][idx]
-        sex = dataframe["isMale"][idx]
+        path = csvdata["path"][idx]
+        age = csvdata["age"][idx]
+        sex = csvdata["isMale"][idx]
         image = imread(path)
         if image.shape != imageSize:
             image = imresize(image, imageSize)
@@ -230,41 +230,42 @@ def getBatch(indices, dataframe, batchSize=1000, imageSize=[250, 250, 3], prevSt
     return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 
 
-datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
-csvPath = "./dataset.csv"
-indicesPath = "./indices.p"
+if __name__ == "__main__":
+    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
+    csvPath = "./dataset.csv"
+    indicesPath = "./indices.p"
 
-if os.path.exists(csvPath):
-    print("restoring csv data...")
-    csvdata = pd.read_csv(csvPath)
-else:
-    print("creating " + csvPath + "...")
-    csvdata = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
-    csvdata.to_csv(csvPath, index=False)
+    if os.path.exists(csvPath):
+        print("restoring csv data...")
+        csvdata = pd.read_csv(csvPath)
+    else:
+        print("creating " + csvPath + "...")
+        csvdata = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
+        csvdata.to_csv(csvPath, index=False)
 
-if os.path.exists(indicesPath):
-    print("restoring indices data...")
-    file = open(indicesPath, "rb")
-    indices = pickle.load(file)
-else:
-    print("creating " + indicesPath + "...")
-    indices = createIndices(csvdata)
-    file = open(indicesPath, "wb")
-    pickle.dump(indices, file)
-file.close()
+    if os.path.exists(indicesPath):
+        print("restoring indices data...")
+        file = open(indicesPath, "rb")
+        indices = pickle.load(file)
+    else:
+        print("creating " + indicesPath + "...")
+        indices = createIndices(csvdata)
+        file = open(indicesPath, "wb")
+        pickle.dump(indices, file)
+    file.close()
 
 
-offset = None
-didFinish = False
-i=0
-while not didFinish:
-    start = time.time()
-    batchData, offset, didFinish = getBatch(indices, csvdata, prevState=offset)
-    end = time.time()
-    diff = end - start
-    finishedNum = np.sum(offset[:,:,1])
-    print("finished " +str(i) + " :" + str(diff) + " ( " + str(finishedNum) +"/" + str(offset.shape[0] * offset.shape[1]) + " finished)")
-    i = i + 1
+    offset = None
+    didFinish = False
+    i=0
+    while not didFinish:
+        start = time.time()
+        batchData, offset, didFinish = getBatch(indices, csvdata, prevState=offset)
+        end = time.time()
+        diff = end - start
+        finishedNum = np.sum(offset[:,:,1])
+        print("finished " +str(i) + " :" + str(diff) + " ( " + str(finishedNum) +"/" + str(offset.shape[0] * offset.shape[1]) + " finished)")
+        i = i + 1
 
 
 

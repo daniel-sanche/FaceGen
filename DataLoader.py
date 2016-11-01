@@ -116,20 +116,43 @@ def createIndices(dataframe, ageRangeLimits=[30, 40, 50, 60, 70, 80, 101], fileN
     pickle._dump(resultDict, file)
     return  resultDict
 
-def getBatch(indices, dataframe, batchSize=100000, imageSize=[250, 250, 3], offsetVec=None):
+def _getFromBin(binList, offset, numPerBin):
+    startPt = offset
+    endPt = min(startPt+numPerBin, len(binList))
+    returnList = binList[startPt:endPt]
+    length = endPt - startPt
+    looped = False
+    while length < numPerBin:
+        looped = True
+        startPt = 0
+        endPt = min(numPerBin-length, len(binList))
+        returnList += binList[startPt:endPt]
+        length = len(returnList)
+
+    return returnList, endPt, looped
+
+def getBatch(indices, dataframe, batchSize=1000, imageSize=[250, 250, 3], prevState=None):
     ageBins = indices["AgeBinLimits"]
     numBins = len(ageBins)
     numPerCat = int(round(batchSize / (numBins * 2), 0))
-    if offsetVec is None:
-        offsetVec = np.zeros([numBins, 2], dtype=int)
+    if prevState is None:
+        prevState = np.zeros([numBins, 2, 2], dtype=int)
     batchIndices = np.zeros([numPerCat * numBins * 2], dtype=int)
     menLists = indices["Men"]
     womenLists = indices["Women"]
     lastIdx = 0
     for i in range(numBins):
-        batchIndices[lastIdx:lastIdx+numPerCat] = menLists[i][:numPerCat]
+        newMen, newOffset, didLoop = _getFromBin(menLists[i], prevState[i, 1, 0], numPerCat)
+        batchIndices[lastIdx:lastIdx+numPerCat] = newMen
+        prevState[i, 1, 0] = newOffset
+        if didLoop:
+            prevState[i, 1, 1] = 1
         lastIdx = lastIdx+numPerCat
-        batchIndices[lastIdx:lastIdx+numPerCat] = womenLists[i][:numPerCat]
+        newWomen, newOffset, didLoop = _getFromBin(womenLists[i], prevState[i, 0, 0], numPerCat)
+        batchIndices[lastIdx:lastIdx + numPerCat] = newWomen
+        prevState[i, 0, 0] = newOffset
+        if didLoop:
+            prevState[i, 1, 0] = 1
         lastIdx = lastIdx + numPerCat
     imageArr = np.zeros([batchSize]+imageSize, dtype=int)
     sexArr = np.zeros([batchSize, 1], dtype=bool)
@@ -148,16 +171,17 @@ def getBatch(indices, dataframe, batchSize=100000, imageSize=[250, 250, 3], offs
         sexArr[i] = sex
         ageArr[i] = age
         i = i + 1
-    return {"image":imageArr, "sex":sexArr, "age":ageArr}, offsetVec
+    didVisitAll = np.sum(prevState[:,:,1]) == numBins * 2
+    return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 
 
 datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
 
 dataframe = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
 indices = createIndices(dataframe)
-batchData, offset = getBatch(indices, dataframe)
-while 1:
-    batchData, offset = getBatch(indices, dataframe, offsetVec=offset)
+batchData, offset, didFinish = getBatch(indices, dataframe)
+while not didFinish:
+    batchData, offset, didFinish = getBatch(indices, dataframe, prevState=offset)
 
 
 

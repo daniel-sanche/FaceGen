@@ -7,7 +7,7 @@ from DataLoader import getBatch
 from math import ceil, sqrt
 from scipy.misc import  imsave, imresize
 
-def visualizeBatch(batchOutput, fileName="batch.png", maxSize=[10000, 10000, 3]):
+def visualizeBatch(batchOutput, fileName="batch.png", maxSize=[5000, 5000, 3]):
     imageVec = batchOutput["image"]
     sexVec = batchOutput["sex"]
     ageVec = batchOutput["age"]
@@ -38,7 +38,7 @@ def visualizeBatch(batchOutput, fileName="batch.png", maxSize=[10000, 10000, 3])
         CombinedImage[rowStart:rowEnd,:,:] = RowImage
         rowStart = rowEnd
     if maxSize is not None:
-        CombinedImage = imresize(CombinedImage, imageSize)
+        CombinedImage = imresize(CombinedImage, maxSize)
     imsave(fileName, CombinedImage)
 
 

@@ -116,11 +116,44 @@ def createIndices(dataframe, ageRangeLimits=[30, 40, 50, 60, 70, 80, 101], fileN
     pickle._dump(resultDict, file)
     return  resultDict
 
+def getBatch(indices, dataframe, batchSize=1000, imageSize=[250, 250, 3]):
+    ageBins = indices["AgeBinLimits"]
+    numBins = len(ageBins)
+    numPerCat = int(round(batchSize / (numBins * 2), 0))
+    batchIndices = np.zeros([numPerCat * numBins * 2], dtype=int)
+    menLists = indices["Men"]
+    womenLists = indices["Women"]
+    lastIdx = 0
+    for i in range(numBins):
+        batchIndices[lastIdx:lastIdx+numPerCat] = menLists[i][:numPerCat]
+        lastIdx = lastIdx+numPerCat
+        batchIndices[lastIdx:lastIdx+numPerCat] = womenLists[i][:numPerCat]
+        lastIdx = lastIdx + numPerCat
+    imageArr = np.zeros([batchSize]+imageSize, dtype=int)
+    sexArr = np.zeros([batchSize, 1], dtype=bool)
+    ageArr = np.zeros([batchSize, 1], dtype=int)
+    i = 0
+    for idx in batchIndices:
+        path = dataframe["path"][idx]
+        age = dataframe["age"][idx]
+        sex = dataframe["isMale"][idx]
+        image = imread(path)
+        if image.shape != imageSize:
+            image = imresize(image, imageSize)
+        if len(image.shape) == 2:
+            image = np.resize(image, imageSize)
+        imageArr[i,:,:] = image
+        sexArr[i] = sex
+        ageArr[i] = age
+        i = i + 1
+    return {"image":imageArr, "sex":sexArr, "age":ageArr}
+
 
 datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
 
 dataframe = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
 indices = createIndices(dataframe)
+getBatch(indices, dataframe)
 
 
 

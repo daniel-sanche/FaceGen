@@ -74,24 +74,6 @@ def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=
             combinedDf.to_csv(outPath, index=False)
         return combinedDf
 
-def createCache(savePath="./images.npy", csvPath="./filtered.csv", imageSize=[257, 257, 3], limit=None):
-    # if file exists, read from disk instead of generating
-    if os.path.exists(savePath):
-        return np.load(savePath)
-    else:
-        dataset = createCsv(datasetDir, outPath=csvPath, ageRange=[15, 100], minScore=0)
-        if limit is None:
-            limit = len(dataset.index)
-        imageArr = np.zeros([limit] + imageSize)
-        for i in range(limit):
-            path = dataset["path"][i]
-            image = imread(path)
-            if imageSize is not None:
-                image = imresize(image, imageSize)
-            if image.shape == imageSize:
-                imageArr[i,:,:,:] = image
-        np.save(savePath, imageArr)
-        return imageArr
 
 def getStats(dataframe, ageRange, outPath="stats.csv"):
     numRows = len(dataframe.index)

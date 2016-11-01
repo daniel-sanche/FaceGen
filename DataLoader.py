@@ -15,13 +15,14 @@ Params
     datasetDir: the directory of the IMDBWIKI dataset on the computer's hard drive
     agetRange:  a vector containing the min and max age to keep. Helps trim out outlier errors in the dataset
     minScore:   the minimum face score to keep. Removes bad quality data
+    minRes:     the minimum resolution image to keep
     filterGender:   a bool that determines whether to trim out faces with unlabeled geneders
     filterRGB:  determines whether we should filter out b/w images (or other encodings)
 
 Returns
     0: the dataframe the .csv represents
 """
-def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=0, filterGender=True, filterRGB=True):
+def createCsv(datasetDir, ageRange=[15, 100], minScore=0, minRes=(60*60), filterGender=True, filterRGB=True):
     combinedDf = None
     for fileType in ["wiki", "imdb"]:
         matFile = loadmat(os.path.join(datasetDir, fileType+"_crop", fileType+".mat"))
@@ -80,26 +81,56 @@ def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=
             combinedDf = df
         else:
             combinedDf = pd.concat([combinedDf, df])
-    numLeft = len(combinedDf.index)
+    return _filterDataframe(combinedDf, ageRange, minScore, minRes, filterGender, filterRGB)
+
+"""
+Helper function to filter csv dataset
+Broke out so it can be used without regenerating dataframe every time
+
+Params
+    csvData: unfiltered csv pandas dataframe
+    agetRange:  a vector containing the min and max age to keep. Helps trim out outlier errors in the dataset
+    minScore:   the minimum face score to keep. Removes bad quality data
+    minRes:     the minimum resolution image to keep
+    filterGender:   a bool that determines whether to trim out faces with unlabeled geneders
+    filterRGB:  determines whether we should filter out b/w images (or other encodings)
+    indexPath: if specified, will delete the old index and generate a new one
+
+Returns
+    0: the filtered dataframe
+"""
+def _filterDataframe(csvData, ageRange=[15, 100], minScore=0, minRes=(60 * 60), filterGender=True, filterRGB=True, indexPath=None):
+    numLeft = len(csvData.index)
     print(numLeft, " images found")
     if minScore is not None:
-        combinedDf = combinedDf[combinedDf.face_score > minScore]
-        numLeft = len(combinedDf.index)
-        print("filtered low quality: ", numLeft, " images remaining")
+        csvData = csvData[csvData.face_score > minScore]
+        numLeft = len(csvData.index)
+        print("filtered low quality faces: ", numLeft, " images remaining")
+    if minRes is not None:
+        csvData = csvData[csvData.image_resolution > minRes]
+        numLeft = len(csvData.index)
+        print("filtered low res images: ", numLeft, " images remaining")
     if ageRange is not None:
-        combinedDf = combinedDf[combinedDf.age > ageRange[0]]
-        combinedDf = combinedDf[combinedDf.age < ageRange[1]]
-        numLeft = len(combinedDf.index)
+        csvData = csvData[csvData.age > ageRange[0]]
+        csvData = csvData[csvData.age < ageRange[1]]
+        numLeft = len(csvData.index)
         print("filtered bad ages: ", numLeft, " images remaining")
     if filterGender:
-        combinedDf = combinedDf[combinedDf.isMale.notnull()]
-        numLeft = len(combinedDf.index)
+        csvData = csvData[csvData.isMale.notnull()]
+        numLeft = len(csvData.index)
         print("filtered null sex: ", numLeft, " images remaining")
     if filterRGB:
-        combinedDf = combinedDf[combinedDf.image_format == "RGB"]
-        numLeft = len(combinedDf.index)
+        csvData = csvData[csvData.image_format == "RGB"]
+        numLeft = len(csvData.index)
         print("filtered non-RGB images: ", numLeft, " images remaining")
-    return combinedDf
+    if indexPath is not None:
+        print ("creating new index file")
+        os.remove(indexPath)
+        indices = createIndices(csvdata)
+        file = open(indexPath, "wb")
+        pickle.dump(indices, file)
+        file.close()
+    return csvData
 
 """
 creates files that contain a list of indices for each category we are training on.

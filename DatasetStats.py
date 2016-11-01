@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import pickle
-from DataLoader import createCsv, createIndices
+from DataLoader import _filterDataframe
 import  sys
 """
 creates a csv file detailing the age/gender breakdown of the csv dataset
@@ -62,6 +62,7 @@ if __name__ == "__main__":
         if os.path.exists(csvPath) and os.path.exists(indicesPath):
             print("restoring csv data...")
             csvdata = pd.read_csv(csvPath)
+            csvdata = _filterDataframe(csvdata)
 
             print("restoring indices data...")
             file = open(indicesPath, "rb")

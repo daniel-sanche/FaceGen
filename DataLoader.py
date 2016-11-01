@@ -81,30 +81,6 @@ def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=
     return combinedDf
 
 """
-creates a csv file detailing the age/gender breakdown of the csv dataset
-
-Params
-    csvdata:    a pandas dataframe from the csv file we are using as out dataset
-    ageRange:   the start and end values for the ages we are using
-    outPath:    the path to save the stats csv at
-
-Returns
-    0: a pandas dataframe representing the results
-"""
-def getStats(csvdata, ageRange=[15, 100], outPath="stats.csv"):
-    numRows = len(csvdata.index)
-    numAges = ageRange[1] - ageRange[0] + 1
-    resultsArr = np.zeros([numAges, 2], dtype=int)
-    for i in range(numRows):
-        sex = int(csvdata["isMale"][i])
-        age = int(csvdata["age"][i])
-        adjustedAge = age - ageRange[0]
-        resultsArr[adjustedAge, sex] = resultsArr[adjustedAge, sex] + 1
-    df = pd.DataFrame(resultsArr, columns=["female", "male"], index=np.arange(ageRange[0], ageRange[1]+1))
-    df.to_csv(outPath)
-    return df
-
-"""
 creates files that contain a list of indices for each category we are training on.
 returns a dictionary with 3 keys: "Men", "Women" and "AgeBunLimits"
 AgeBinLimits contains a list of cut-off points that define each age range

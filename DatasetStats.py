@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from DataLoader import createCsv, createIndices
-from PIL import Image
+import  sys
 """
 creates a csv file detailing the age/gender breakdown of the csv dataset
 
@@ -55,31 +55,24 @@ def findImageSizeRange(csvData):
 
 
 if __name__ == "__main__":
-    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
-    csvPath = "./dataset.csv"
-    indicesPath = "./indices.p"
+    if len(sys.argv) == 3:
+        csvPath = sys.argv[1]
+        indicesPath = sys.argv[2]
 
-    if os.path.exists(csvPath):
-        print("restoring csv data...")
-        csvdata = pd.read_csv(csvPath)
+        if os.path.exists(csvPath) and os.path.exists(indicesPath):
+            print("restoring csv data...")
+            csvdata = pd.read_csv(csvPath)
+
+            print("restoring indices data...")
+            file = open(indicesPath, "rb")
+            indices = pickle.load(file)
+            file.close()
+
+
+            print ("finding image size range...")
+            imgRange = findImageSizeRange(csvdata)
+            print (imgRange)
+        else:
+            print("one or both files not found")
     else:
-        print("creating " + csvPath + "...")
-        csvdata = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
-        csvdata.to_csv(csvPath, index=False)
-        print(csvPath + " saved")
-
-    if os.path.exists(indicesPath):
-        print("restoring indices data...")
-        file = open(indicesPath, "rb")
-        indices = pickle.load(file)
-    else:
-        print("creating " + indicesPath + "...")
-        indices = createIndices(csvdata)
-        file = open(indicesPath, "wb")
-        pickle.dump(indices, file)
-        print(indicesPath + " saved")
-    file.close()
-
-    print ("finding image size range...")
-    imgRange = findImageSizeRange(csvdata)
-    print (imgRange)
+        print("requires 2 parameters (csv_path, indices_path)")

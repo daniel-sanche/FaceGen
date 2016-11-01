@@ -1,5 +1,6 @@
 import os
 from scipy.io import loadmat
+from scipy.misc import imread, imresize
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
@@ -54,15 +55,37 @@ def createCsv(datasetDir, outPath="./dataset.csv", ageRange=[15, 100], minScore=
     if ageRange is not None:
         combinedDf = combinedDf[combinedDf.age > ageRange[0]]
         combinedDf = combinedDf[combinedDf.age < ageRange[1]]
-    combinedDf.to_csv(outPath, index=False)
+    if outPath is not None:
+        combinedDf.to_csv(outPath, index=False)
+    return combinedDf
 
+def createCache(savePath="./images.npy", csvPath="./filtered.csv", imageSize=[257, 257, 3], limit=None):
+    if os.path.exists(savePath):
+        return np.load(savePath)
+    else:
+        if os.path.exists(csvPath):
+            dataset = pd.read_csv(csvPath)
+        else:
+            dataset = createCsv(datasetDir, outPath=csvPath, ageRange=[15, 100], minScore=0)
+        if limit is None:
+            limit = len(dataset.index)
+        imageArr = np.zeros([limit] + imageSize)
+        for i in range(limit):
+            path = dataset["path"][i]
+            image = imread(path)
+            if imageSize is not None:
+                image = imresize(image, imageSize)
+            if image.shape == imageSize:
+                imageArr[i,:,:,:] = image
+        np.save(savePath, imageArr)
+        return imageArr
 
 
 
 datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
 
-createCsv(datasetDir, outPath="./unfiltered", ageRange=None, minScore=None)
-#createCsv(datasetDir, outPath="./filtered", ageRange=[15, 100], minScore=0)
+images = createCache()
+print (images.shape)
 
 
 

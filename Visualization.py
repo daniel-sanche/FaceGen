@@ -4,19 +4,18 @@ import pandas as pd
 import  numpy as np
 import pickle
 from DataLoader import getBatch
-from math import ceil, sqrt
+from math import ceil
 from scipy.misc import  imsave, imresize
 
-def visualizeBatch(batchOutput, fileName="batch.png", maxSize=[5000, 5000, 3]):
+def visualizeBatch(batchOutput, indices,fileName="batch.png", maxImgSize=64):
     imageVec = batchOutput["image"]
     sexVec = batchOutput["sex"]
     ageVec = batchOutput["age"]
 
     imageSize = [imageVec.shape[1], imageVec.shape[2], imageVec.shape[3]]
     numItems = sexVec.shape[0]
-    sqrtItems = sqrt(numItems)
-    numRows = int(ceil(sqrtItems))
-    numCols = numRows
+    numRows = len(indices["AgeBinLimits"]) * 2
+    numCols = int(ceil(numItems/numRows))
 
     CombinedImage = np.ones([imageSize[0]*numRows, imageSize[1]*numCols, imageSize[2]])
     i = 0
@@ -27,8 +26,8 @@ def visualizeBatch(batchOutput, fileName="batch.png", maxSize=[5000, 5000, 3]):
         lastStart = 0
         for c in range(numCols):
             thisImage = imageVec[i,:,:]
-            thisSex = sexVec[i]
-            thisAge = ageVec[i]
+            #thisSex = sexVec[i]
+            #thisAge = ageVec[i]
             end = lastStart + imageSize[1]
             RowImage[:, lastStart:end, :] = thisImage
             lastStart = end
@@ -37,8 +36,8 @@ def visualizeBatch(batchOutput, fileName="batch.png", maxSize=[5000, 5000, 3]):
                 break
         CombinedImage[rowStart:rowEnd,:,:] = RowImage
         rowStart = rowEnd
-    if maxSize is not None:
-        CombinedImage = imresize(CombinedImage, maxSize)
+    if maxImgSize is not None:
+        CombinedImage = imresize(CombinedImage, [maxImgSize*numRows, maxImgSize*numCols])
     imsave(fileName, CombinedImage)
 
 
@@ -65,4 +64,4 @@ if __name__ == "__main__":
 
     state = None
     batchData, state, didFinish = getBatch(indices, csvdata, prevState=state)
-    visualizeBatch(batchData)
+    visualizeBatch(batchData, indices)

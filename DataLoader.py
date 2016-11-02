@@ -214,7 +214,7 @@ Returns
     1:  the new state, whcih can be passed back in to get the next batch
     2:  a bool indicating whether we have visited all images at least one (since the start of the state)
 """
-def getBatch(indices, csvdata, batchSize=1000, imageSize=[250, 250, 3], prevState=None):
+def getBatch(indices, csvdata, batchSize=1000, imageSize=250, prevState=None):
     ageBins = indices["AgeBinLimits"]
     numBins = len(ageBins)
     numPerCat = int(round(batchSize / (numBins * 2), 0))
@@ -237,9 +237,9 @@ def getBatch(indices, csvdata, batchSize=1000, imageSize=[250, 250, 3], prevStat
         if didLoop:
             prevState[i, 1, 0] = 1
         lastIdx = lastIdx + numPerCat
-    imageArr = np.zeros([batchSize]+imageSize, dtype=int)
-    sexArr = np.zeros([batchSize, 1], dtype=bool)
-    ageArr = np.zeros([batchSize, 1], dtype=int)
+    imageArr = np.zeros([numPerCat * numBins * 2]+imageSize, dtype=int)
+    sexArr = np.zeros([numPerCat * numBins * 2, 1], dtype=bool)
+    ageArr = np.zeros([numPerCat * numBins * 2, 1], dtype=int)
     i = 0
     for idx in batchIndices:
         path = csvdata["path"][idx]
@@ -247,7 +247,7 @@ def getBatch(indices, csvdata, batchSize=1000, imageSize=[250, 250, 3], prevStat
         sex = csvdata["isMale"][idx]
         image = imread(path)
         if image.shape != imageSize:
-            image = imresize(image, imageSize)
+            image = imresize(image, [imageSize, imageSize, 3])
         if len(image.shape) == 2:
             image = np.resize(image, imageSize)
         imageArr[i,:,:] = image

@@ -204,7 +204,7 @@ returned, the function can be called again to iterate through the data in batche
 Params
     indices:    the indices dict for the data
     csvdata:    the pandas dataframe from the .csv of faces we are using
-    batchSize:  the size of the batch we want to extract
+    batchSize:  the size of the batch we want to extract. Will not always return this exact value, but will be close
     imageSize:  the size of the images to extract
     prevState:  the state containing the last indices we extracted, so we can get the next batch
 

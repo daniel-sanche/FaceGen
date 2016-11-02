@@ -9,11 +9,11 @@ from scipy.misc import  imsave, imresize
 
 def visualizeBatch(batchOutput, indices,fileName="batch.png", maxImgSize=64):
     imageVec = batchOutput["image"]
-    sexVec = batchOutput["sex"]
-    ageVec = batchOutput["age"]
+    #sexVec = batchOutput["sex"]
+    #ageVec = batchOutput["age"]
 
     imageSize = [imageVec.shape[1], imageVec.shape[2], imageVec.shape[3]]
-    numItems = sexVec.shape[0]
+    numItems = imageVec.shape[0]
     numRows = len(indices["AgeBinLimits"]) * 2
     numCols = int(ceil(numItems/numRows))
 
@@ -63,5 +63,5 @@ if __name__ == "__main__":
     file.close()
 
     state = None
-    batchData, state, didFinish = getBatch(indices, csvdata, prevState=state)
+    batchData, state, didFinish = getBatch(indices, csvdata, prevState=state, imageSize=64)
     visualizeBatch(batchData, indices)

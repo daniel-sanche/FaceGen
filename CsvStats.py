@@ -15,7 +15,7 @@ Params
 Returns
     0: a pandas dataframe representing the results
 """
-def statsCsv(csvdata, ageRange=[15, 100], outPath="stats.csv"):
+def statsCsv(csvdata, ageRange=[10, 100], outPath="stats.csv"):
     numRows = len(csvdata.index)
     numAges = ageRange[1] - ageRange[0] + 1
     resultsArr = np.zeros([numAges, 2], dtype=int)

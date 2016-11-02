@@ -22,7 +22,7 @@ Params
 Returns
     0: the dataframe the .csv represents
 """
-def createCsv(datasetDir, ageRange=[15, 100], minScore=0, minRes=(60*60), filterGender=True, filterRGB=True):
+def createCsv(datasetDir, ageRange=[10, 100], minScore=0, minRes=(60*60), filterGender=True, filterRGB=True):
     combinedDf = None
     for fileType in ["wiki", "imdb"]:
         matFile = loadmat(os.path.join(datasetDir, fileType+"_crop", fileType+".mat"))
@@ -99,7 +99,7 @@ Params
 Returns
     0: the filtered dataframe
 """
-def _filterDataframe(csvData, ageRange=[15, 100], minScore=0, minRes=(60 * 60), filterGender=True, filterRGB=True, indexPath=None):
+def _filterDataframe(csvData, ageRange, minScore, minRes, filterGender, filterRGB, indexPath=None):
     numLeft = len(csvData.index)
     print(numLeft, " images found")
     if minScore is not None:
@@ -147,7 +147,7 @@ Params
 Returns:
     0:  a dictionary containing the indices
 """
-def createIndices(csvdata, ageRangeLimits=[30, 40, 50, 60, 70, 80, 101]):
+def createIndices(csvdata, ageRangeLimits=[20, 30, 40, 50, 60, 70, 80, 101]):
     numRows = len(csvdata.index)
     menArr = [[] for x in ageRangeLimits]
     womenArr = [[] for x in ageRangeLimits]
@@ -237,7 +237,7 @@ def getBatch(indices, csvdata, batchSize=1000, imageSize=250, prevState=None):
         if didLoop:
             prevState[i, 1, 0] = 1
         lastIdx = lastIdx + numPerCat
-    imageArr = np.zeros([numPerCat * numBins * 2]+imageSize, dtype=int)
+    imageArr = np.zeros([numPerCat * numBins * 2]+[imageSize, imageSize, 3], dtype=int)
     sexArr = np.zeros([numPerCat * numBins * 2, 1], dtype=bool)
     ageArr = np.zeros([numPerCat * numBins * 2, 1], dtype=int)
     i = 0
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         csvdata = pd.read_csv(csvPath)
     else:
         print("creating " + csvPath + "...")
-        csvdata = createCsv(datasetDir, ageRange=[15, 100], minScore=0)
+        csvdata = createCsv(datasetDir)
         csvdata.to_csv(csvPath, index=False)
         print(csvPath + " saved")
 

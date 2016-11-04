@@ -298,6 +298,7 @@ class DataLoader(object):
         useCached:  if true, will try to load the first batch from disk to improve initial load time
     """
     def __init__(self, indices, csvData, batchSize=1000, bufferMax=5, useCached=True):
+        self.epochNum=0
         self.indices = indices
         self.csvData = csvData
         self.batchSize = batchSize
@@ -340,6 +341,11 @@ class DataLoader(object):
                 file.close()
                 self.needsCache = False
             self.lock.release()
+            if didFinish == True:
+                # finished an entire epoch. Shuffle data, reset state
+                self.epochNum = self.epochNum + 1
+                currentState = None
+                _randomizeIndices(indices)
 
 
     """

@@ -78,6 +78,8 @@ if __name__ == "__main__":
             print ("finding image size range...")
             imgRange = findImageSizeRange(csvdata)
             print (imgRange)
+            print("generating stats csv...")
+            statsCsv(csvdata)
 
         else:
             print("one or both files not found")

@@ -259,24 +259,25 @@ def getBatch(indices, csvdata, batchSize=1000, imageSize=250, prevState=None):
     return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 
 class DataLoader(object):
-    def __init__(self, indices, csvData, batchSize=1000):
+    def __init__(self, indices, csvData, batchSize=1000, bufferMax=5):
         self.indices = indices
         self.csvData = csvData
         self.batchSize = batchSize
         self.lock = threading.Condition()
         self.thread = threading.Thread(target=self.runner)
         self.buffer = []
+        self.bufferMax = bufferMax
     def runner(self):
         currentState = None
         while(True):
             batchData, currentState, didFinish = getBatch(self.indices, self.csvData, prevState=currentState)
             self.lock.acquire()
-            try:
-                self.buffer.append(batchData)
-                self.lock.notify()
-                print("Added item: " + str(len(self.buffer)))
-            finally:
-                self.lock.release()
+            while len(self.buffer) >= self.bufferMax:
+                self.lock.wait()
+            self.buffer.append(batchData)
+            self.lock.notify()
+            print("Added item: " + str(len(self.buffer)))
+            self.lock.release()
 
 
     def start(self):
@@ -288,7 +289,8 @@ class DataLoader(object):
             print("waiting on an item...")
             self.lock.wait()
         nextBatch = self.buffer.pop(0)
-        print("removed idem: " + str(len(self.buffer)))
+        print("removed item: " + str(len(self.buffer)))
+        self.lock.notify()
         self.lock.release()
         return nextBatch
 
@@ -326,6 +328,7 @@ if __name__ == "__main__":
     loader.start()
     while True:
         nextData = loader.getData()
+        time.sleep(20)
 
 
 

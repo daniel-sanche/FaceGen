@@ -285,12 +285,24 @@ Class to control data loading. benefits of using this class:
     -data is randomized after each epoch
 """
 class DataLoader(object):
+    """"""
+
+    """
+    Initialize a DataLoader instance
+
+    Params:
+        indices:    the indices dict for the data
+        csvData:    the pandas dataframe from the .csv of faces we are using
+        batchSize:  the target size of the each batch we will load
+        bufferMax:  the max size of the buffer that holds ready batches
+        useCached:  if true, will try to load the first batch from disk to improve initial load time
+    """
     def __init__(self, indices, csvData, batchSize=1000, bufferMax=5, useCached=True):
         self.indices = indices
         self.csvData = csvData
         self.batchSize = batchSize
         self.lock = threading.Condition()
-        self.thread = threading.Thread(target=self.runner)
+        self.thread = threading.Thread(target=self._thread_runner)
         self.needsCache=False
         self.bufferMax = bufferMax
         self.buffer = []
@@ -303,10 +315,15 @@ class DataLoader(object):
                 file.close()
                 #randomize indices to ensure that the first batch won't be the same as the cached one
                 _randomizeIndices(self.indices)
+                print("restored cache [" + str(len(self.buffer)) + " in buffer]")
             else:
                 self.needsCache = True
 
-    def runner(self):
+    """
+    this function is the internal thread that is run by the class
+    continuously loads batches of data from disk, at puts them in the ready buffer
+    """
+    def _thread_runner(self):
         currentState = None
         while(True):
             batchData, currentState, didFinish = getBatch(self.indices, self.csvData, prevState=currentState)
@@ -315,7 +332,7 @@ class DataLoader(object):
                 self.lock.wait()
             self.buffer.append(batchData)
             self.lock.notify()
-            print("Added item: " + str(len(self.buffer)))
+            print("added item [" + str(len(self.buffer)) + " in buffer]")
             #generate cache file if necessary
             if self.needsCache:
                 file = open(self.cachePath, "wb")
@@ -325,16 +342,28 @@ class DataLoader(object):
             self.lock.release()
 
 
+    """
+    start the data loading process
+    """
     def start(self):
         self.thread.start()
 
+    """
+    Grab the next batch off the DataLoader's buffer
+
+    Returns:
+        0:  a dictionary containing:
+                -a vector for all the images (batchSize x imageSize),
+                -a vector of the ages (batchSize x 1),
+                -a vector of the sexes (batchSize x 1) for the batch
+    """
     def getData(self):
         self.lock.acquire()
         while len(self.buffer) == 0:
             print("waiting on an item...")
             self.lock.wait()
         nextBatch = self.buffer.pop(0)
-        print("removed item: " + str(len(self.buffer)))
+        print("removed item [" + str(len(self.buffer)) + " in buffer]")
         self.lock.notify()
         self.lock.release()
         return nextBatch

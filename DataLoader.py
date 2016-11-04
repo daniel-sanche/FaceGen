@@ -265,12 +265,37 @@ class DataLoader(object):
         self.batchSize = batchSize
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self.runner)
+        self.buffer = []
     def runner(self):
-        while True:
-            print ("test")
+        currentState = None
+        while(True):
+            batchData, currentState, didFinish = getBatch(self.indices, self.csvData, prevState=currentState)
+            self.lock.acquire()
+            try:
+                print('Acquired lock')
+                self.buffer.append(batchData)
+                print("buffer size: " + str(len(self.buffer)))
+            finally:
+                self.lock.release()
+
 
     def start(self):
         self.thread.start()
+
+    def getData(self):
+        nextBatch = None
+        while nextBatch is None:
+            self.lock.acquire()
+            try:
+                if len(self.buffer) > 0:
+                    nextBatch = self.buffer.pop(0)
+                    print("buffer size: " + str(len(self.buffer)))
+            finally:
+                self.lock.release()
+        return nextBatch
+
+
+
 
 if __name__ == "__main__":
     datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
@@ -302,11 +327,8 @@ if __name__ == "__main__":
     loader = DataLoader(indices, csvdata, 1000)
     loader.start()
 
-"""
-       batchData, offset, didFinish = getBatch(indices, csvdata, prevState=offset)
-
-"""
-
+    nextData = loader.getData()
+    print(nextData)
 
 
 

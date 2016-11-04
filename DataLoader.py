@@ -263,7 +263,7 @@ class DataLoader(object):
         self.indices = indices
         self.csvData = csvData
         self.batchSize = batchSize
-        self.lock = threading.Lock()
+        self.lock = threading.Condition()
         self.thread = threading.Thread(target=self.runner)
         self.buffer = []
     def runner(self):
@@ -272,9 +272,9 @@ class DataLoader(object):
             batchData, currentState, didFinish = getBatch(self.indices, self.csvData, prevState=currentState)
             self.lock.acquire()
             try:
-                print('Acquired lock')
                 self.buffer.append(batchData)
-                print("buffer size: " + str(len(self.buffer)))
+                self.lock.notify()
+                print("Added item: " + str(len(self.buffer)))
             finally:
                 self.lock.release()
 
@@ -283,15 +283,13 @@ class DataLoader(object):
         self.thread.start()
 
     def getData(self):
-        nextBatch = None
-        while nextBatch is None:
-            self.lock.acquire()
-            try:
-                if len(self.buffer) > 0:
-                    nextBatch = self.buffer.pop(0)
-                    print("buffer size: " + str(len(self.buffer)))
-            finally:
-                self.lock.release()
+        self.lock.acquire()
+        while len(self.buffer) == 0:
+            print("waiting on an item...")
+            self.lock.wait()
+        nextBatch = self.buffer.pop(0)
+        print("removed idem: " + str(len(self.buffer)))
+        self.lock.release()
         return nextBatch
 
 
@@ -326,9 +324,8 @@ if __name__ == "__main__":
     #run in new thread
     loader = DataLoader(indices, csvdata, 1000)
     loader.start()
-
-    nextData = loader.getData()
-    print(nextData)
+    while True:
+        nextData = loader.getData()
 
 
 

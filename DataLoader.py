@@ -7,6 +7,7 @@ import numpy as np
 import pickle
 import time
 from PIL import Image
+import threading
 """"
 creates a csv file containing information on all the faces
 uses the information from the dataset's .mat files, and applies filtering to keep only good quality data
@@ -257,6 +258,19 @@ def getBatch(indices, csvdata, batchSize=1000, imageSize=250, prevState=None):
     didVisitAll = np.sum(prevState[:,:,1]) == numBins * 2
     return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 
+class DataLoader(object):
+    def __init__(self, indices, csvData, batchSize=1000):
+        self.indices = indices
+        self.csvData = csvData
+        self.batchSize = batchSize
+        self.lock = threading.Lock()
+        self.thread = threading.Thread(target=self.runner)
+    def runner(self):
+        while True:
+            print ("test")
+
+    def start(self):
+        self.thread.start()
 
 if __name__ == "__main__":
     datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
@@ -284,18 +298,14 @@ if __name__ == "__main__":
         print(indicesPath + " saved")
     file.close()
 
+    #run in new thread
+    loader = DataLoader(indices, csvdata, 1000)
+    loader.start()
 
-    offset = None
-    didFinish = False
-    i=0
-    while not didFinish:
-        start = time.time()
-        batchData, offset, didFinish = getBatch(indices, csvdata, prevState=offset)
-        end = time.time()
-        diff = end - start
-        finishedNum = np.sum(offset[:,:,1])
-        print("finished " +str(i) + " :" + str(diff) + " ( " + str(finishedNum) +"/" + str(offset.shape[0] * offset.shape[1]) + " finished)")
-        i = i + 1
+"""
+       batchData, offset, didFinish = getBatch(indices, csvdata, prevState=offset)
+
+"""
 
 
 

@@ -8,6 +8,7 @@ import pickle
 import time
 from PIL import Image
 import threading
+from random import  shuffle
 """"
 creates a csv file containing information on all the faces
 uses the information from the dataset's .mat files, and applies filtering to keep only good quality data
@@ -258,6 +259,31 @@ def getBatch(indices, csvdata, batchSize=1000, imageSize=250, prevState=None):
     didVisitAll = np.sum(prevState[:,:,1]) == numBins * 2
     return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 
+
+"""
+scrables up the order of indices
+this randomization is important, because we want to make sure batches aren't always the same
+Params:
+    indices:    the indices dict we want to randomize
+"""
+def _randomizeIndices(indices):
+    menList = indices["Men"]
+    womenList = indices["Women"]
+    ageBins = indices["AgeBinLimits"]
+    numBins = len(ageBins)
+    for i in range(numBins):
+        shuffle(menList[i])
+        shuffle(womenList[i])
+
+
+
+"""
+Class to control data loading. benefits of using this class:
+    -data is loaded on it's own thread,
+    -data is stored in a buffer that can be pulled from
+    -and a cache is supported so the first batch is loaded quickly from disk
+    -data is randomized after each epoch
+"""
 class DataLoader(object):
     def __init__(self, indices, csvData, batchSize=1000, bufferMax=5, useCached=True):
         self.indices = indices
@@ -275,8 +301,11 @@ class DataLoader(object):
                 file = open(self.cachePath, "rb")
                 self.buffer = pickle.load(file)
                 file.close()
+                #randomize indices to ensure that the first batch won't be the same as the cached one
+                _randomizeIndices(self.indices)
             else:
                 self.needsCache = True
+
     def runner(self):
         currentState = None
         while(True):
@@ -338,7 +367,7 @@ if __name__ == "__main__":
         pickle.dump(indices, file)
         print(indicesPath + " saved")
     file.close()
-
+    _randomizeIndices(indices)
     #run in new thread
     loader = DataLoader(indices, csvdata, 1000)
     loader.start()

@@ -259,14 +259,24 @@ def getBatch(indices, csvdata, batchSize=1000, imageSize=250, prevState=None):
     return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 
 class DataLoader(object):
-    def __init__(self, indices, csvData, batchSize=1000, bufferMax=5):
+    def __init__(self, indices, csvData, batchSize=1000, bufferMax=5, useCached=True):
         self.indices = indices
         self.csvData = csvData
         self.batchSize = batchSize
         self.lock = threading.Condition()
         self.thread = threading.Thread(target=self.runner)
-        self.buffer = []
+        self.needsCache=False
         self.bufferMax = bufferMax
+        self.buffer = []
+        self.cachePath="./batch_cache.p"
+        #if we are using caching, retore the old cache file, or mark that we need to generate one
+        if useCached:
+            if os.path.exists(self.cachePath):
+                file = open(self.cachePath, "rb")
+                self.buffer = pickle.load(file)
+                file.close()
+            else:
+                self.needsCache = True
     def runner(self):
         currentState = None
         while(True):
@@ -277,6 +287,12 @@ class DataLoader(object):
             self.buffer.append(batchData)
             self.lock.notify()
             print("Added item: " + str(len(self.buffer)))
+            #generate cache file if necessary
+            if self.needsCache:
+                file = open(self.cachePath, "wb")
+                pickle.dump( self.buffer, file)
+                file.close()
+                self.needsCache = False
             self.lock.release()
 
 

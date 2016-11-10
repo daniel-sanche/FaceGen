@@ -140,7 +140,7 @@ class NeuralNet(object):
 
         #calculate the accuracy for all predictions
         sexCorrect = tf.cast(tf.equal(tf.round(self.dis_label_gender), tf.round(sexOutput)), tf.float32)
-        ageCorrect = tf.cast(tf.less(ageDiff, ageDiffForAcc), tf.float32)
+        ageCorrect = tf.cast(tf.less(tf.abs(ageDiff), ageDiffForAcc), tf.float32)
 
         disTruthCorrect = tf.equal(tf.round(self.dis_label_truth), tf.round(truthOutput))
         disTruthAccuracy = tf.reduce_mean(tf.cast(disTruthCorrect, tf.float32))

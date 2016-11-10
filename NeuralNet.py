@@ -12,18 +12,24 @@ class NeuralNet(object):
         self.image_size = image_size
         self.noise_size=noise_size
 
-        fcSize = 64
+        self.dropout =  tf.placeholder(tf.float32)
+        self._buildGenerator(fcSize=64)
+
+        sess = tf.Session()
+        sess.run(tf.initialize_all_variables())
+        self.session = sess
+
+    def _buildGenerator(self, fcSize):
         sqrtFc = int(sqrt(fcSize))
 
         # build the generator network
-        dropout = tf.placeholder(tf.float32)
         gen_input_noise = tf.placeholder(tf.float32, shape=[batch_size, self.noise_size])
         gen_input_age = tf.placeholder(tf.float32, shape=[batch_size, 1])
         gen_input_gender = tf.placeholder(tf.float32, shape=[batch_size, 1])
         gen_input_combined = tf.concat(1, [gen_input_age, gen_input_gender, gen_input_noise])
         gen_fully_connected1, var_dict = create_fully_connected_layer(gen_input_combined, fcSize,
                                                                       self.noise_size + 2,
-                                                                      dropout, trainable=True, name_prefix="gen_fc")
+                                                                      self.dropout, trainable=True, name_prefix="gen_fc")
         gen_squared_fc1 = tf.reshape(gen_fully_connected1, [batch_size, sqrtFc, sqrtFc, 1])
         # now [1000,8,8,1]
         gen_unpool1 = create_unpool_layer(gen_squared_fc1)
@@ -45,15 +51,11 @@ class NeuralNet(object):
         gen_output_layer = tf.reshape(gen_unconv3, [batch_size, totalPixels])
         # now [1000,64,64,3]
 
-        sess = tf.Session()
-        sess.run(tf.initialize_all_variables())
-
+        #save important nodes
         self.gen_output = gen_output_layer
         self.gen_input_noise = gen_input_noise
         self.gen_input_age = gen_input_age
         self.gen_input_gender = gen_input_gender
-        self.dropout = dropout
-        self.session = sess
 
     def train(self, age_range=[10, 100]):
         batch_size = self.batch_size

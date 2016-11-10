@@ -297,7 +297,8 @@ class DataLoader(object):
         bufferMax:  the max size of the buffer that holds ready batches
         useCached:  if true, will try to load the first batch from disk to improve initial load time
     """
-    def __init__(self, indices, csvData, batchSize=1000, bufferMax=5, useCached=True):
+    def __init__(self, indices, csvData, batchSize=1000, imageSize=100, bufferMax=5, useCached=True):
+        self.imageSize=imageSize
         self.epochNum=0
         self.indices = indices
         self.csvData = csvData
@@ -327,7 +328,7 @@ class DataLoader(object):
     def _thread_runner(self):
         currentState = None
         while(True):
-            batchData, currentState, didFinish = getBatch(self.indices, self.csvData, prevState=currentState)
+            batchData, currentState, didFinish = getBatch(self.indices, self.csvData, prevState=currentState, imageSize=self.imageSize)
             self.lock.acquire()
             while len(self.buffer) >= self.bufferMax:
                 self.lock.wait()
@@ -419,7 +420,7 @@ if __name__ == "__main__":
 
     csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
     #run in new thread
-    loader = DataLoader(indices, csvdata, 1000)
+    loader = DataLoader(indices, csvdata, batchSize=1000, imageSize=60)
     loader.start()
     while True:
         nextData = loader.getData()

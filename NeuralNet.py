@@ -3,12 +3,12 @@ import tensorflow as tf
 from math import sqrt
 import numpy as np
 from nnLayers import create_fully_connected_layer, create_max_pool_layer, create_deconv_layer, create_conv_layer, create_output_layer, create_unpool_layer
-
+from Visualization import visualizeImages
 
 num_ages = 100
 batch_size = 1000
 imageSize = 64
-totalPixels = imageSize*imageSize
+totalPixels = imageSize*imageSize*3
 input_noise_size = 20
 
 fully_connected_size = 64
@@ -58,5 +58,7 @@ while True:
     noise_batch = np.random.random_sample((batch_size, input_noise_size))
     feed_dict = {gen_input_layer: noise_batch, dropout: 0.5}
     print("running")
-    sess.run(gen_output_layer, feed_dict=feed_dict)
+    generatedImages = sess.run(gen_output_layer, feed_dict=feed_dict)
+    generatedImages = np.reshape(generatedImages, [batch_size, imageSize, imageSize, 3])
+    visualizeImages(generatedImages[:50,:,:,:], numRows=5)
     print("done")

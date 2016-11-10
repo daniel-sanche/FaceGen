@@ -7,39 +7,58 @@ from DataLoader import getBatch
 from math import ceil
 from scipy.misc import  imsave, imresize
 
+"""
+function to visualize a batch of data from the dataset
+Will display the entire batch, with each row being a separate age group/gender (from young to old)
+
+Params
+    batchOutput:    the dictionary output from getBatch
+    indices:        the indices file for the dataset
+    fileName:       the name of the output png
+    maxImgSize:     the size of all sub-images that are combined into the final output
+"""
 def visualizeBatch(batchOutput, indices,fileName="batch.png", maxImgSize=64):
     imageVec = batchOutput["image"]
-    #sexVec = batchOutput["sex"]
-    #ageVec = batchOutput["age"]
-
-    imageSize = [imageVec.shape[1], imageVec.shape[2], imageVec.shape[3]]
     numItems = imageVec.shape[0]
     numRows = len(indices["AgeBinLimits"]) * 2
     numCols = int(ceil(numItems/numRows))
+    visualizeImages(imageVec, numRows=numRows, numCols=numCols, maxImgSize=maxImgSize, fileName=fileName)
 
-    CombinedImage = np.ones([imageSize[0]*numRows, imageSize[1]*numCols, imageSize[2]])
+"""
+More general visualization function, that can be used for any set of images (not just from dataset)
+takes in a numpy array of images ([batchSize, rows, cols, channels]), and displays
+a subset of the images in a png file
+
+Params
+    imageMat:   a numpy array of images to display
+    numRows:    the number of rows to use in the output
+    maxImgSize:     the size of all sub-images that are combined into the final output
+    fileName:       the name of the output png
+"""
+def visualizeImages(imageMat, numRows=5, maxImgSize=64, fileName="images_set.png"):
+    numItems = imageMat.shape[0]
+    numCols = int(ceil(numItems / numRows))
+    imageSize = [imageMat.shape[1], imageMat.shape[2], imageMat.shape[3]]
+    CombinedImage = np.ones([imageSize[0] * numRows, imageSize[1] * numCols, imageSize[2]])
     i = 0
     rowStart = 0
     for r in range(numRows):
         rowEnd = rowStart + imageSize[0]
-        RowImage = np.zeros([imageSize[0], imageSize[1]*numCols, imageSize[2]])
+        RowImage = np.zeros([imageSize[0], imageSize[1] * numCols, imageSize[2]])
         lastStart = 0
         for c in range(numCols):
-            thisImage = imageVec[i,:,:]
-            #thisSex = sexVec[i]
-            #thisAge = ageVec[i]
+            thisImage = imageMat[i, :, :, :]
             end = lastStart + imageSize[1]
             RowImage[:, lastStart:end, :] = thisImage
             lastStart = end
             i = i + 1
             if i >= numItems:
                 break
-        CombinedImage[rowStart:rowEnd,:,:] = RowImage
+        CombinedImage[rowStart:rowEnd, :, :] = RowImage
         rowStart = rowEnd
     if maxImgSize is not None:
-        CombinedImage = imresize(CombinedImage, [maxImgSize*numRows, maxImgSize*numCols])
+        CombinedImage = imresize(CombinedImage, [maxImgSize * numRows, maxImgSize * numCols])
     imsave(fileName, CombinedImage)
-
 
 
 if __name__ == "__main__":

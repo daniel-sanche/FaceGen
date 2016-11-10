@@ -24,14 +24,14 @@ class NeuralNet(object):
         sqrtFc = int(sqrt(fcSize))
 
         # build the generator network
-        gen_input_noise = tf.placeholder(tf.float32, shape=[batch_size, self.noise_size])
-        gen_input_age = tf.placeholder(tf.float32, shape=[batch_size, 1])
-        gen_input_gender = tf.placeholder(tf.float32, shape=[batch_size, 1])
+        gen_input_noise = tf.placeholder(tf.float32, shape=[self.batch_size, self.noise_size])
+        gen_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
+        gen_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_combined = tf.concat(1, [gen_input_age, gen_input_gender, gen_input_noise])
         gen_fully_connected1, var_dict = create_fully_connected_layer(gen_input_combined, fcSize,
                                                                       self.noise_size + 2,
                                                                       self.dropout, trainable=True, name_prefix="gen_fc")
-        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [batch_size, sqrtFc, sqrtFc, 1])
+        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, sqrtFc, sqrtFc, 1])
         # now [1000,8,8,1]
         gen_unpool1 = create_unpool_layer(gen_squared_fc1)
         # now [1000,16,16,1]
@@ -49,7 +49,7 @@ class NeuralNet(object):
                                                     var_dict=var_dict)
         # now [1000,64,64,5]
         totalPixels = self.image_size * self.image_size * 3
-        gen_output_layer = tf.reshape(gen_unconv3, [batch_size, totalPixels])
+        gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])
         # now [1000,64,64,3]
 
         #save important nodes

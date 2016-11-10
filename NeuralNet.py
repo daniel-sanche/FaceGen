@@ -7,7 +7,8 @@ from Visualization import visualizeImages
 
 
 class NeuralNet(object):
-    def __init__(self, batch_size=1000, image_size=64, noise_size=20):
+    def __init__(self, batch_size=1000, image_size=64, noise_size=20, age_range=[10, 100]):
+        self.age_range = age_range
         self.batch_size = batch_size
         self.image_size = image_size
         self.noise_size=noise_size
@@ -15,6 +16,7 @@ class NeuralNet(object):
         self.dropout =  tf.placeholder(tf.float32)
         self._buildGenerator(fcSize=64)
         self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49)
+        self._buildDiscriminatorCost()
 
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
@@ -61,10 +63,15 @@ class NeuralNet(object):
 
     def _buildDiscriminator(self, conv1Size, conv2Size, fcSize):
         num_pixels = self.image_size * self.image_size * 3
-        dis_truth_image = tf.placeholder(tf.float32, shape=[self.batch_size, num_pixels])
+        dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, num_pixels])
+        dis_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
+        dis_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
+        dis_labels_truth = tf.concat(0, [tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
+        dis_labels_age = tf.concat(0, [dis_input_age, self.gen_input_age])
+        dis_labels_gender = tf.concat(0, [dis_input_gender, self.gen_input_gender])
         #[1000, 12,288]
 
-        dis_combined_inputs = tf.concat(0, [dis_truth_image, self.gen_output])
+        dis_combined_inputs = tf.concat(0, [dis_input_image, self.gen_output])
         # [2000, 12288]
         dis_reshaped_inputs = tf.reshape(dis_combined_inputs, [self.batch_size * 2, self.image_size, self.image_size, 3])
         # [2000, 64, 64, 3]
@@ -90,23 +97,42 @@ class NeuralNet(object):
                                                          var_dict=var_dict)
         # [2000, 3]
         # save important nodes
-        self.dis_truth_image = dis_truth_image
+        self.dis_input_image = dis_input_image
+        self.dis_input_age = dis_input_age
+        self.dis_input_gender = dis_input_gender
         self.dis_output = dis_output_layer
         self.vardict = var_dict
+        self.dis_label_truth = dis_labels_truth
+        self.dis_label_age = dis_labels_age
+        self.dis_label_gender = dis_labels_gender
 
 
+    def _buildDiscriminatorCost(self, learningRate=1e-4):
+        isGenerated, age, gender = tf.split(1, 3, self.dis_output)
+        scaledAge = tf.scalar_mul(self.age_range[1], age)
+        truthDiff = tf.sub(isGenerated, self.dis_label_truth)
+        ageDiff = tf.sub(scaledAge, self.dis_label_age)
+        genderDiff = tf.sub(scaledAge, self.dis_label_gender)
+        truthCost = tf.nn.l2_loss(truthDiff) / batch_size * 2
+        genderCost = tf.nn.l2_loss(genderDiff) / batch_size * 2
+        ageCost = tf.nn.l2_loss(ageDiff) / batch_size * 2
+        combinedCost = tf.add(tf.add(truthCost, genderCost), ageCost)
+        training_step = tf.train.AdamOptimizer(learningRate).minimize(combinedCost)
+        self.dis_train = training_step
 
-    def train(self, age_range=[10, 100]):
+
+    def train(self, truthImages, truthGenders, truthAges):
         batch_size = self.batch_size
         noise_batch = np.random.random_sample((batch_size, self.noise_size))
-        ageVec = (
-        np.linspace(start=age_range[0], stop=age_range[1], num=batch_size) + np.random.sample(batch_size)).reshape(
-            [batch_size, 1])
+        ageVec = (np.linspace(start=self.age_range[0], stop=self.age_range[1], num=batch_size) + np.random.sample(batch_size)).reshape([batch_size, 1])
         genderVec = np.tile(np.array([0, 1], dtype=bool), int(batch_size / 2)).reshape([batch_size, 1])
-        feed_dict = {self.gen_input_noise: noise_batch, self.gen_input_age: ageVec, self.gen_input_gender: genderVec, self.dropout: 0.5}
-        generatedImages = self.session.run(self.gen_output, feed_dict=feed_dict)
-        generatedImages = np.reshape(generatedImages, [batch_size, self.image_size, self.image_size, 3])
-        visualizeImages(generatedImages[:50, :, :, :], numRows=5)
+        feed_dict = {self.gen_input_noise: noise_batch, self.gen_input_age: ageVec,
+                     self.gen_input_gender: genderVec, self.dropout: 0.5, self.dis_input_gender:truthGenders,
+                     self.dis_input_age:truthAges, self.dis_input_image:truthImages}
+        self.session.run(self.dis_train, feed_dict=feed_dict)
+        #generatedImages = self.session.run(self.gen_output, feed_dict=feed_dict)
+        #generatedImages = np.reshape(generatedImages, [batch_size, self.image_size, self.image_size, 3])
+        #visualizeImages(generatedImages[:50, :, :, :], numRows=5)
 
 
 
@@ -116,14 +142,18 @@ csvPath = "./dataset.csv"
 indicesPath = "./indices.p"
 csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
 
-batch_size = 1000
 image_size = 64
-
-#loader = DataLoader(indices, csvdata, batchSize=batch_size, imageSize=image_size)
-#loader.start()
-
+batch_goal = 1000
+loader = DataLoader(indices, csvdata, batchSize=batch_goal, imageSize=image_size)
+loader.start()
+batchDict = loader.getData()
+batchImage = batchDict["image"]
+batchAge = batchDict["age"]
+batchSex = batchDict["sex"]
+batch_size = batchImage.shape[0]
+batchImage = batchImage.reshape([batch_size, -1])
 
 #start training
 network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=20)
-network.train()
+network.train(batchImage, batchSex, batchAge)
 print("done")

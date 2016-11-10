@@ -315,9 +315,14 @@ class DataLoader(object):
                 file = open(self.cachePath, "rb")
                 self.buffer = pickle.load(file)
                 file.close()
-                #randomize indices to ensure that the first batch won't be the same as the cached one
-                _randomizeIndices(self.indices)
-                print("restored cache [" + str(len(self.buffer)) + " in buffer]")
+                #check to ensure size is right
+                if self.buffer[0]["image"].shape[1] == imageSize:
+                    _randomizeIndices(self.indices)
+                    print("restored cache [" + str(len(self.buffer)) + " in buffer]")
+                else:
+                    self.needsCache = True
+                    self.buffer = []
+                    print("cached failed; wrong image size")
             else:
                 self.needsCache = True
 

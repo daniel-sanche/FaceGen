@@ -12,7 +12,7 @@ class NetworkType(Enum):
     Discriminator=1
 
 class NeuralNet(object):
-    def __init__(self, trainingType, batch_size=1000, image_size=64, noise_size=20, age_range=[10, 100]):
+    def __init__(self, trainingType, batch_size=1000, image_size=64, noise_size=20, age_range=[10, 100], learningRate=1e-4):
         self.trainingType = trainingType
         self.age_range = age_range
         self.batch_size = batch_size
@@ -23,7 +23,7 @@ class NeuralNet(object):
         trainGen = (trainingType==NetworkType.Generator)
         self._buildGenerator(fcSize=64, train=trainGen)
         self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49, train=~trainGen)
-        self._buildCostFunctions()
+        self._buildCostFunctions(learningRate=learningRate)
 
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())

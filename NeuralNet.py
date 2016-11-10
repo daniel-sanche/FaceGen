@@ -107,31 +107,34 @@ class NeuralNet(object):
         self.dis_label_age = dis_labels_age
         self.dis_label_gender = dis_labels_gender
 
-    def _buildCostFunctions(self, learningRate=1e-4):
+    def _buildCostFunctions(self, learningRate=1e-4, genTruthWeight=5):
         isGenerated, age, gender = tf.split(1, 3, self.dis_output)
         scaledAge = tf.scalar_mul(self.age_range[1], age)
         truthDiff = tf.sub(isGenerated, self.dis_label_truth)
         ageDiff = tf.sub(scaledAge, self.dis_label_age) / self.age_range[1]
         sexDiff = tf.sub(gender, self.dis_label_gender)
-        truthCost = tf.nn.l2_loss(truthDiff) / batch_size * 2
-        sexCost = tf.nn.l2_loss(sexDiff) / batch_size * 2
-        ageCost = tf.nn.l2_loss(ageDiff) / batch_size * 2
 
         #discriminator cost for true images is the sum of the error in the truth, gender, and age values
         #error in generated images is only the error in the truth value, because we don't want to learn false patterns
-        featuresError = tf.add(sexCost, ageCost)
-        disCombinedCost = tf.add(tf.mul(featuresError, isGenerated), truthCost)
+        disTruthCost = tf.nn.l2_loss(truthDiff)
+        disSexCost = tf.nn.l2_loss(tf.mul(sexDiff, isGenerated))
+        disAgeCost = tf.nn.l2_loss(tf.mul(ageDiff, isGenerated))
+        disCombinedCost = tf.add(tf.add(disSexCost, disAgeCost), disTruthCost) / batch_size * 2
         disTrainStep = tf.train.AdamOptimizer(learningRate).minimize(disCombinedCost)
 
-        #generator cost is the max of truth, gender, and age values
+        #generator cost is the L2 loss of truth, gender, and age values
         #truth value is weighted, because making realistic humans should be a higher priority
         fakeLabels = tf.cast(tf.logical_not(tf.cast(self.dis_label_truth, tf.bool)), tf.float32)
         genDiff = tf.mul(tf.sub(isGenerated, fakeLabels), fakeLabels)
-        genCost = tf.nn.l2_loss(genDiff) / batch_size
+        genAgeDiff = tf.mul(ageDiff, fakeLabels)
+        genSexDiff = tf.mul(sexDiff, fakeLabels)
+        genCost = tf.nn.l2_loss(tf.concat(1, [tf.scalar_mul(genTruthWeight, genDiff), genAgeDiff, genSexDiff])) / batch_size
         genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCost)
 
         self.dis_train = disTrainStep
+        self.dis_cost = disCombinedCost
         self.gen_train = genTrainStep
+        self.gen_cost = genCost
 
 
     def train(self, truthImages, truthGenders, truthAges):

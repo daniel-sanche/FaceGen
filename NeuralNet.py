@@ -14,6 +14,7 @@ class NeuralNet(object):
 
         self.dropout =  tf.placeholder(tf.float32)
         self._buildGenerator(fcSize=64)
+        self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49)
 
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
@@ -56,6 +57,44 @@ class NeuralNet(object):
         self.gen_input_noise = gen_input_noise
         self.gen_input_age = gen_input_age
         self.gen_input_gender = gen_input_gender
+        self.vardict = var_dict
+
+    def _buildDiscriminator(self, conv1Size, conv2Size, fcSize):
+        num_pixels = self.image_size * self.image_size * 3
+        dis_truth_image = tf.placeholder(tf.float32, shape=[self.batch_size, num_pixels])
+        #[1000, 12,288]
+
+        dis_combined_inputs = tf.concat(0, [dis_truth_image, self.gen_output])
+        # [2000, 12288]
+        dis_reshaped_inputs = tf.reshape(dis_combined_inputs, [self.batch_size * 2, self.image_size, self.image_size, 3])
+        # [2000, 64, 64, 3]
+        dis_conv1, var_dict = create_conv_layer(dis_reshaped_inputs, conv1Size, 3, trainable=True,
+                                                name_prefix="dis_conv1", var_dict=self.vardict)
+        # [2000, 64, 64, 32]
+        dis_pool1 = create_max_pool_layer(dis_conv1)
+        # [2000, 32, 32, 32]
+        dis_conv2, var_dict = create_conv_layer(dis_pool1, conv2Size, conv1Size, trainable=True,
+                                                name_prefix="dis_conv2", var_dict=var_dict)
+        # [2000, 32, 32, 64]
+        dis_pool2 = create_max_pool_layer(dis_conv2)
+        # [2000, 16, 16, 64]
+        dis_pool2_flattened = tf.reshape(dis_pool2, [self.batch_size*2, -1])
+        # [2000, 16384]
+        dis_fully_connected1, var_dict = create_fully_connected_layer(dis_pool2_flattened, fcSize,
+                                                                      16 * 16 * conv2Size, self.dropout,
+                                                                      trainable=True,
+                                                                      name_prefix="dis_fc", var_dict=var_dict)
+        # [2000, 49]
+        dis_output_layer, var_dict = create_output_layer(dis_fully_connected1, fcSize, 3,
+                                                         trainable=True, name_prefix="dis_out",
+                                                         var_dict=var_dict)
+        # [2000, 3]
+        # save important nodes
+        self.dis_truth_image = dis_truth_image
+        self.dis_output = dis_output_layer
+        self.vardict = var_dict
+
+
 
     def train(self, age_range=[10, 100]):
         batch_size = self.batch_size
@@ -80,8 +119,8 @@ csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
 batch_size = 1000
 image_size = 64
 
-loader = DataLoader(indices, csvdata, batchSize=batch_size, imageSize=image_size)
-loader.start()
+#loader = DataLoader(indices, csvdata, batchSize=batch_size, imageSize=image_size)
+#loader.start()
 
 
 #start training

@@ -374,14 +374,21 @@ class DataLoader(object):
         self.lock.release()
         return nextBatch
 
+"""
+Function to load the csv data and indices from disk, or create them if needed
 
+Params
+    datasetDir: the directory of the root of the IMDB-WIKI dataset
+    csvPath:    the path of the csv representation of the data
+                if no file exists at the path, a new one will be generated
+    indicesPath:    the path of the indices from the data
+                    if no file exists at the path, a new one will be generated
 
-
-if __name__ == "__main__":
-    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
-    csvPath = "./dataset.csv"
-    indicesPath = "./indices.p"
-
+Returns
+    0:  the csv data represented as a pandas dataframe
+    1:  the index data
+"""
+def LoadFilesData(datasetDir, csvPath="./dataset.csv", indicesPath="./indices.p"):
     if os.path.exists(csvPath):
         print("restoring csv data...")
         csvdata = pd.read_csv(csvPath)
@@ -403,6 +410,14 @@ if __name__ == "__main__":
         print(indicesPath + " saved")
     file.close()
     _randomizeIndices(indices)
+    return csvdata, indices
+
+if __name__ == "__main__":
+    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
+    csvPath = "./dataset.csv"
+    indicesPath = "./indices.p"
+
+    csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
     #run in new thread
     loader = DataLoader(indices, csvdata, 1000)
     loader.start()

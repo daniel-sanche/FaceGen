@@ -167,12 +167,8 @@ class NeuralNet(object):
         self.gen_accuracy_age = genAgeAccuracy
         self.gen_accuracy_sex = genSexAccuracy
 
-    def train(self, truthImages, truthGenders, truthAges, print_results=False):
-        if self.trainingType == NetworkType.Discriminator:
-            self._trainDiscriminator(truthImages=truthImages, truthGenders=truthGenders, truthAges=truthAges, print_results=print_results)
 
-
-    def _trainDiscriminator(self, truthImages, truthGenders, truthAges, print_results):
+    def train(self, truthImages, truthGenders, truthAges, print_results):
         batch_size = self.batch_size
         noise_batch = np.random.random_sample((batch_size, self.noise_size))
         ageVec = (np.linspace(start=self.age_range[0],stop=self.age_range[1],num=batch_size)+np.random.sample(batch_size))
@@ -181,17 +177,24 @@ class NeuralNet(object):
         feed_dict = {self.gen_input_noise: noise_batch, self.gen_input_age: ageVec,
                      self.gen_input_gender: genderVec, self.dropout: 0.5, self.dis_input_gender:truthGenders,
                      self.dis_input_age:truthAges, self.dis_input_image:truthImages}
-        if print_results:
-            feed_dict[self.dropout] = 1
-            outputList = (self.dis_cost,self.dis_accuracy_age,self.dis_accuracy_sex,self.dis_accuracy_truth)
-            cost, ageAcc,sexAcc, truthAcc = self.session.run(outputList, feed_dict=feed_dict)
-            print("cost: ", cost, " Accuracies: (t:", truthAcc,"a:",ageAcc,"s:",sexAcc,")")
-        feed_dict[self.dropout] = 0.5
-        self.session.run(self.dis_train, feed_dict=feed_dict)
-
-        #generatedImages = self.session.run(self.gen_output, feed_dict=feed_dict)
-        #generatedImages = np.reshape(generatedImages, [batch_size, self.image_size, self.image_size, 3])
-        #visualizeImages(generatedImages[:50, :, :, :], numRows=5)
+        if self.trainingType == NetworkType.Discriminator:
+            if print_results:
+                feed_dict[self.dropout] = 1
+                outputList = (self.dis_cost,self.dis_accuracy_age,self.dis_accuracy_sex,self.dis_accuracy_truth)
+                cost, ageAcc,sexAcc, truthAcc = self.session.run(outputList, feed_dict=feed_dict)
+                print("cost: ", cost, " Accuracies: (t:", truthAcc,"a:",ageAcc,"s:",sexAcc,")")
+            feed_dict[self.dropout] = 0.5
+            self.session.run(self.dis_train, feed_dict=feed_dict)
+        else:
+            if print_results:
+                feed_dict[self.dropout] = 1
+                outputList = (self.gen_output, self.gen_cost,self.gen_accuracy_age,self.gen_accuracy_sex,self.gen_accuracy_truth)
+                outImages, cost, ageAcc,sexAcc, truthAcc = self.session.run(outputList, feed_dict=feed_dict)
+                print("cost: ", cost, " Accuracies: (t:", truthAcc,"a:",ageAcc,"s:",sexAcc,")")
+                outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
+                visualizeImages(outImages[:50, :, :, :], numRows=5)
+            feed_dict[self.dropout] = 0.5
+            self.session.run(self.gen_train, feed_dict=feed_dict)
 
 
 
@@ -213,6 +216,6 @@ batchSex = batchDict["sex"]
 batchImage = batchImage.reshape([batch_size, -1])
 
 #start training
-discriminator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size, noise_size=20)
+discriminator = NeuralNet(trainingType=NetworkType.Generator, batch_size=batch_size, image_size=image_size, noise_size=20)
 discriminator.train(batchImage, batchSex, batchAge, print_results=True)
 print("done")

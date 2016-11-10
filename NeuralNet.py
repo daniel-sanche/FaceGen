@@ -205,17 +205,19 @@ indicesPath = "./indices.p"
 csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
 
 image_size = 64
-numPerBin = 100
+numPerBin = 10
 batch_size = numPerBin * 8 * 2
 loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size)
 loader.start()
-batchDict = loader.getData()
-batchImage = batchDict["image"]
-batchAge = batchDict["age"]
-batchSex = batchDict["sex"]
-batchImage = batchImage.reshape([batch_size, -1])
 
 #start training
-discriminator = NeuralNet(trainingType=NetworkType.Generator, batch_size=batch_size, image_size=image_size, noise_size=20)
-discriminator.train(batchImage, batchSex, batchAge, print_results=True)
-print("done")
+discriminator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size, noise_size=20)
+i=0
+while True:
+    batchDict = loader.getData()
+    batchImage = batchDict["image"]
+    batchAge = batchDict["age"]
+    batchSex = batchDict["sex"]
+    batchImage = batchImage.reshape([batch_size, -1])
+    discriminator.train(batchImage, batchSex, batchAge, print_results=i%50==0)
+    i=i+1

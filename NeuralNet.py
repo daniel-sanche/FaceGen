@@ -2,7 +2,8 @@ from DataLoader import DataLoader, LoadFilesData
 import tensorflow as tf
 from math import sqrt, ceil
 import numpy as np
-from nnLayers import create_fully_connected_layer, create_max_pool_layer, create_deconv_layer, create_conv_layer, create_output_layer, create_unpool_layer
+from nnLayers import create_fully_connected_layer, create_max_pool_layer, create_deconv_layer, \
+    create_conv_layer, create_output_layer, create_unpool_layer
 from Visualization import visualizeImages
 
 
@@ -16,7 +17,7 @@ class NeuralNet(object):
         self.dropout =  tf.placeholder(tf.float32)
         self._buildGenerator(fcSize=64)
         self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49)
-        self._buildDiscriminatorCost()
+        self._buildCostFunctions()
 
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
@@ -106,25 +107,38 @@ class NeuralNet(object):
         self.dis_label_age = dis_labels_age
         self.dis_label_gender = dis_labels_gender
 
-
-    def _buildDiscriminatorCost(self, learningRate=1e-4):
+    def _buildCostFunctions(self, learningRate=1e-4):
         isGenerated, age, gender = tf.split(1, 3, self.dis_output)
         scaledAge = tf.scalar_mul(self.age_range[1], age)
         truthDiff = tf.sub(isGenerated, self.dis_label_truth)
-        ageDiff = tf.sub(scaledAge, self.dis_label_age)
-        genderDiff = tf.sub(scaledAge, self.dis_label_gender)
+        ageDiff = tf.sub(scaledAge, self.dis_label_age) / self.age_range[1]
+        sexDiff = tf.sub(gender, self.dis_label_gender)
         truthCost = tf.nn.l2_loss(truthDiff) / batch_size * 2
-        genderCost = tf.nn.l2_loss(genderDiff) / batch_size * 2
+        sexCost = tf.nn.l2_loss(sexDiff) / batch_size * 2
         ageCost = tf.nn.l2_loss(ageDiff) / batch_size * 2
-        combinedCost = tf.add(tf.add(truthCost, genderCost), ageCost)
-        training_step = tf.train.AdamOptimizer(learningRate).minimize(combinedCost)
-        self.dis_train = training_step
+
+        #discriminator cost for true images is the sum of the error in the truth, gender, and age values
+        #error in generated images is only the error in the truth value, because we don't want to learn false patterns
+        featuresError = tf.add(sexCost, ageCost)
+        disCombinedCost = tf.add(tf.mul(featuresError, isGenerated), truthCost)
+        disTrainStep = tf.train.AdamOptimizer(learningRate).minimize(disCombinedCost)
+
+        #generator cost is the max of truth, gender, and age values
+        #truth value is weighted, because making realistic humans should be a higher priority
+        fakeLabels = tf.cast(tf.logical_not(tf.cast(self.dis_label_truth, tf.bool)), tf.float32)
+        genDiff = tf.mul(tf.sub(isGenerated, fakeLabels), fakeLabels)
+        genCost = tf.nn.l2_loss(genDiff) / batch_size
+        genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCost)
+
+        self.dis_train = disTrainStep
+        self.gen_train = genTrainStep
 
 
     def train(self, truthImages, truthGenders, truthAges):
         batch_size = self.batch_size
         noise_batch = np.random.random_sample((batch_size, self.noise_size))
-        ageVec = (np.linspace(start=self.age_range[0], stop=self.age_range[1], num=batch_size) + np.random.sample(batch_size)).reshape([batch_size, 1])
+        ageVec = (np.linspace(start=self.age_range[0],stop=self.age_range[1],num=batch_size)+np.random.sample(batch_size))
+        ageVec = ageVec.reshape([batch_size, 1])
         genderVec = np.tile(np.array([0, 1], dtype=bool), int(batch_size / 2)).reshape([batch_size, 1])
         feed_dict = {self.gen_input_noise: noise_batch, self.gen_input_age: ageVec,
                      self.gen_input_gender: genderVec, self.dropout: 0.5, self.dis_input_gender:truthGenders,

@@ -206,7 +206,7 @@ returned, the function can be called again to iterate through the data in batche
 Params
     indices:    the indices dict for the data
     csvdata:    the pandas dataframe from the .csv of faces we are using
-    batchSize:  the size of the batch we want to extract. Will not always return this exact value, but will be close
+    numPerBin:  the number of images per category (age group/sex combination) we want to extract
     imageSize:  the size of the images to extract
     prevState:  the state containing the last indices we extracted, so we can get the next batch
 
@@ -216,32 +216,31 @@ Returns
     1:  the new state, whcih can be passed back in to get the next batch
     2:  a bool indicating whether we have visited all images at least one (since the start of the state)
 """
-def getBatch(indices, csvdata, batchSize=1000, imageSize=250, prevState=None):
+def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
     ageBins = indices["AgeBinLimits"]
     numBins = len(ageBins)
-    numPerCat = int(round(batchSize / (numBins * 2), 0))
     if prevState is None:
         prevState = np.zeros([numBins, 2, 2], dtype=int)
-    batchIndices = np.zeros([numPerCat * numBins * 2], dtype=int)
+    batchIndices = np.zeros([numPerBin * numBins * 2], dtype=int)
     menLists = indices["Men"]
     womenLists = indices["Women"]
     lastIdx = 0
     for i in range(numBins):
-        newMen, newOffset, didLoop = _getFromBin(menLists[i], prevState[i, 1, 0], numPerCat)
-        batchIndices[lastIdx:lastIdx+numPerCat] = newMen
+        newMen, newOffset, didLoop = _getFromBin(menLists[i], prevState[i, 1, 0], numPerBin)
+        batchIndices[lastIdx:lastIdx+numPerBin] = newMen
         prevState[i, 1, 0] = newOffset
         if didLoop:
             prevState[i, 1, 1] = 1
-        lastIdx = lastIdx+numPerCat
-        newWomen, newOffset, didLoop = _getFromBin(womenLists[i], prevState[i, 0, 0], numPerCat)
-        batchIndices[lastIdx:lastIdx + numPerCat] = newWomen
+        lastIdx = lastIdx+numPerBin
+        newWomen, newOffset, didLoop = _getFromBin(womenLists[i], prevState[i, 0, 0], numPerBin)
+        batchIndices[lastIdx:lastIdx + numPerBin] = newWomen
         prevState[i, 0, 0] = newOffset
         if didLoop:
             prevState[i, 1, 0] = 1
-        lastIdx = lastIdx + numPerCat
-    imageArr = np.zeros([numPerCat * numBins * 2]+[imageSize, imageSize, 3], dtype=int)
-    sexArr = np.zeros([numPerCat * numBins * 2, 1], dtype=bool)
-    ageArr = np.zeros([numPerCat * numBins * 2, 1], dtype=int)
+        lastIdx = lastIdx + numPerBin
+    imageArr = np.zeros([numPerBin * numBins * 2]+[imageSize, imageSize, 3], dtype=int)
+    sexArr = np.zeros([numPerBin * numBins * 2, 1], dtype=bool)
+    ageArr = np.zeros([numPerBin * numBins * 2, 1], dtype=int)
     i = 0
     for idx in batchIndices:
         path = csvdata["path"][idx]
@@ -293,16 +292,16 @@ class DataLoader(object):
     Params:
         indices:    the indices dict for the data
         csvData:    the pandas dataframe from the .csv of faces we are using
-        batchSize:  the target size of the each batch we will load
+        numPerBin:  the number of images per category (age group/sex combination) we want to extract
         bufferMax:  the max size of the buffer that holds ready batches
         useCached:  if true, will try to load the first batch from disk to improve initial load time
     """
-    def __init__(self, indices, csvData, batchSize=1000, imageSize=100, bufferMax=5, useCached=True):
+    def __init__(self, indices, csvData, numPerBin=100, imageSize=100, bufferMax=5, useCached=True):
         self.imageSize=imageSize
         self.epochNum=0
         self.indices = indices
         self.csvData = csvData
-        self.batchSize = batchSize
+        self.numPerBin = numPerBin
         self.lock = threading.Condition()
         self.thread = threading.Thread(target=self._thread_runner)
         self.needsCache=False
@@ -316,13 +315,13 @@ class DataLoader(object):
                 self.buffer = pickle.load(file)
                 file.close()
                 #check to ensure size is right
-                if self.buffer[0]["image"].shape[1] == imageSize:
+                if self.buffer[0]["image"].shape[1] == imageSize and self.buffer[0]["image"].shape[0] % numPerBin == 0:
                     _randomizeIndices(self.indices)
                     print("restored cache [" + str(len(self.buffer)) + " in buffer]")
                 else:
                     self.needsCache = True
                     self.buffer = []
-                    print("cached failed; wrong image size")
+                    print("cached failed; wrong size")
             else:
                 self.needsCache = True
 
@@ -333,7 +332,7 @@ class DataLoader(object):
     def _thread_runner(self):
         currentState = None
         while(True):
-            batchData, currentState, didFinish = getBatch(self.indices, self.csvData, prevState=currentState, imageSize=self.imageSize)
+            batchData, currentState, didFinish = getBatch(self.indices, self.csvData, numPerBin=self.numPerBin, prevState=currentState, imageSize=self.imageSize)
             self.lock.acquire()
             while len(self.buffer) >= self.bufferMax:
                 self.lock.wait()
@@ -425,7 +424,7 @@ if __name__ == "__main__":
 
     csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
     #run in new thread
-    loader = DataLoader(indices, csvdata, batchSize=1000, imageSize=60)
+    loader = DataLoader(indices, csvdata, numPerBin=1000, imageSize=60)
     loader.start()
     while True:
         nextData = loader.getData()

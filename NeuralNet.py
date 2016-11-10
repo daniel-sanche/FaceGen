@@ -143,14 +143,14 @@ indicesPath = "./indices.p"
 csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
 
 image_size = 64
-batch_goal = 1000
-loader = DataLoader(indices, csvdata, batchSize=batch_goal, imageSize=image_size)
+numPerBin = 100
+batch_size = numPerBin * 8 * 2
+loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size)
 loader.start()
 batchDict = loader.getData()
 batchImage = batchDict["image"]
 batchAge = batchDict["age"]
 batchSex = batchDict["sex"]
-batch_size = batchImage.shape[0]
 batchImage = batchImage.reshape([batch_size, -1])
 
 #start training

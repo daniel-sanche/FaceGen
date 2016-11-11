@@ -23,7 +23,7 @@ class NeuralNet(object):
         self.dropout =  tf.placeholder(tf.float32)
         trainGen = (trainingType==NetworkType.Generator)
         self._buildGenerator(fcSize=64, train=trainGen)
-        self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49, train=~trainGen)
+        self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49, train=(not trainGen))
         self._buildCostFunctions(learningRate=learningRate)
 
         sess = tf.Session()
@@ -33,9 +33,10 @@ class NeuralNet(object):
         self._createOrRestoreCheckpoint(chkptDir, chkptName)
 
     def saveCheckpoint(self, runsSinceLast):
-        print("saving " + self.checkpoint_name + " " + str(self.checkpoint_num+runsSinceLast))
         self.checkpoint_num = self.checkpoint_num + runsSinceLast
         self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
+        print(self.checkpoint_name + " " + str(self.checkpoint_num) + " saved")
+
 
     def _createOrRestoreCheckpoint(self, chkptDir="./checkpoints", fileName="NN.ckpt", numToKeep=3):
         #create the saver object

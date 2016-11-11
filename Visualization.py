@@ -60,6 +60,11 @@ def visualizeImages(imageMat, numRows=5, maxImgSize=64, fileName="images_set.png
         CombinedImage = imresize(CombinedImage, [maxImgSize * numRows, maxImgSize * numCols])
     imsave(fileName, CombinedImage)
 
+def csvFromOutput(isTruth, age, gender,guessedTrue, guessedAge, guessedGender, fileName="batchResults.csv"):
+    combined = np.concatenate((isTruth, age, gender, guessedTrue, guessedAge, guessedGender), axis=1)
+    titles = ["isReal","Age","Sex","GuesedReal","GuessedAge","GuessedSex"]
+    df = pd.DataFrame(combined, columns=titles)
+    df.to_csv(fileName)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

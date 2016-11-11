@@ -4,7 +4,7 @@ from math import sqrt, ceil
 import numpy as np
 from nnLayers import create_fully_connected_layer, create_max_pool_layer, create_deconv_layer, \
     create_conv_layer, create_output_layer, create_unpool_layer
-from Visualization import visualizeImages
+from Visualization import visualizeImages, csvFromOutput
 from enum import Enum
 
 class NetworkType(Enum):
@@ -156,6 +156,9 @@ class NeuralNet(object):
         genSexCorrect = tf.mul(sexCorrect, fakeLabels)
         genSexAccuracy = tf.scalar_mul(2, tf.reduce_mean(tf.cast(genSexCorrect, tf.float32)))
 
+        self.dis_out_age = scaledAge
+        self.dis_out_gender = sexOutput
+        self.dis_out_truth = truthOutput
         self.dis_train = disTrainStep
         self.dis_cost = disCombinedCost
         self.dis_accuracy_truth = disTruthAccuracy
@@ -180,9 +183,13 @@ class NeuralNet(object):
         if self.trainingType == NetworkType.Discriminator:
             if print_results:
                 feed_dict[self.dropout] = 1
-                outputList = (self.dis_cost,self.dis_accuracy_age,self.dis_accuracy_sex,self.dis_accuracy_truth)
-                cost, ageAcc,sexAcc, truthAcc = self.session.run(outputList, feed_dict=feed_dict)
+                outputList = (self.dis_out_truth, self.dis_out_gender, self.dis_out_age, self.dis_cost,self.dis_accuracy_age,self.dis_accuracy_sex,self.dis_accuracy_truth)
+                outTruth, outSex, outAge, cost, ageAcc,sexAcc, truthAcc = self.session.run(outputList, feed_dict=feed_dict)
                 print("cost: ", cost, " Accuracies: (t:", truthAcc,"a:",ageAcc,"s:",sexAcc,")")
+                csvFromOutput(np.concatenate([np.ones([batch_size,1]), np.zeros([batch_size,1])]),
+                              np.concatenate([truthAges,ageVec]),
+                              np.concatenate([truthGenders,genderVec]),
+                              outTruth, outAge, outSex)
             feed_dict[self.dropout] = 0.5
             self.session.run(self.dis_train, feed_dict=feed_dict)
         else:

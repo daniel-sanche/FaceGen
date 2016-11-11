@@ -6,13 +6,14 @@ from nnLayers import create_fully_connected_layer, create_max_pool_layer, create
     create_conv_layer, create_output_layer, create_unpool_layer
 from Visualization import visualizeImages, csvFromOutput
 from enum import Enum
+from os import walk, path, mkdir
 
 class NetworkType(Enum):
     Generator=0,
     Discriminator=1
 
 class NeuralNet(object):
-    def __init__(self, trainingType, batch_size=1000, image_size=64, noise_size=20, age_range=[10, 100], learningRate=1e-4):
+    def __init__(self, trainingType, batch_size=1000, chkptDir="./checkpoints", chkptName="FaceGen.ckpt",image_size=64, noise_size=20, age_range=[10, 100], learningRate=1e-4):
         self.trainingType = trainingType
         self.age_range = age_range
         self.batch_size = batch_size
@@ -28,6 +29,34 @@ class NeuralNet(object):
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
         self.session = sess
+        self.saver = tf.train.Saver(self.vardict, max_to_keep=3)
+        checkpoint_path, checkpoint_num = self._find_checkpoint_to_restore(chkptDir, chkptName)
+        if checkpoint_path:
+            print ("restoring checkpoint ", checkpoint_path)
+            self.saver.restore(sess, checkpoint_path)
+        else:
+            checkpoint_num = 0
+        self.checkpoint_dir = chkptDir
+        self.checkpoint_name = chkptName
+        self.checkpoint_num = checkpoint_num
+
+    def saveCheckpoint(self, runsSinceLast):
+        self.checkpoint_num = self.checkpoint_num + runsSinceLast
+        self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
+
+    def _find_checkpoint_to_restore(self, chkptDir="./checkpoints", file_name="NN.ckpt"):
+        highest_found = 0
+        path_found = None
+        if not path.exists(chkptDir):
+            mkdir(chkptDir)
+        for subdir, dirs, files in walk(chkptDir):
+            for file in files:
+                if file_name in file and ".meta" not in file and ".txt" not in file:
+                    iteration_num = int(file.split("-")[-1])
+                    if iteration_num >= highest_found:
+                        highest_found = iteration_num
+                        path_found = path.join(subdir, file)
+        return path_found, highest_found
 
     def _buildGenerator(self, fcSize, train=True):
         sqrtFc = int(sqrt(fcSize))
@@ -227,4 +256,5 @@ while True:
     batchSex = batchDict["sex"]
     batchImage = batchImage.reshape([batch_size, -1])
     discriminator.train(batchImage, batchSex, batchAge, print_results=i%50==0)
+    discriminator.saveCheckpoint(1)
     i=i+1

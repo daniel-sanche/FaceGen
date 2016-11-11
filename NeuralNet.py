@@ -33,6 +33,7 @@ class NeuralNet(object):
         self._createOrRestoreCheckpoint(chkptDir, chkptName)
 
     def saveCheckpoint(self, runsSinceLast):
+        print("saving " + self.checkpoint_name + " " + str(self.checkpoint_num+runsSinceLast))
         self.checkpoint_num = self.checkpoint_num + runsSinceLast
         self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
 
@@ -243,6 +244,7 @@ csvPath = "./dataset.csv"
 indicesPath = "./indices.p"
 csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
 
+saveSteps = 10
 image_size = 64
 numPerBin = 10
 batch_size = numPerBin * 8 * 2
@@ -258,6 +260,7 @@ while True:
     batchAge = batchDict["age"]
     batchSex = batchDict["sex"]
     batchImage = batchImage.reshape([batch_size, -1])
-    discriminator.train(batchImage, batchSex, batchAge, print_results=i%50==0)
-    discriminator.saveCheckpoint(1)
+    discriminator.train(batchImage, batchSex, batchAge, print_results=i%saveSteps==0)
+    if i%saveSteps==0 and i != 0:
+        discriminator.saveCheckpoint(saveSteps)
     i=i+1

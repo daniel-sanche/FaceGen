@@ -43,6 +43,7 @@ class NeuralNet(object):
 
     def restoreNewestCheckpoint(self):
         highest_found = 0
+        path_found = None
         for subdir, dirs, files in walk(self.checkpoint_dir):
             for file in files:
                 if self.checkpoint_name in file and ".meta" not in file and ".txt" not in file:
@@ -50,7 +51,7 @@ class NeuralNet(object):
                     if iteration_num >= highest_found:
                         highest_found = iteration_num
                         path_found = path.join(subdir, file)
-        if path_found:
+        if path_found is not None:
             #if existing one was found, restore previous checkpoint
             print ("restoring checkpoint ", path_found)
             self.saver.restore(self.session, path_found)
@@ -221,7 +222,7 @@ class NeuralNet(object):
                               np.concatenate([truthGenders,genderVec]),
                               outTruth, outAge, outSex)
             feed_dict[self.dropout] = 0.5
-            self.session.run(self.dis_train, feed_dict=feed_dict)
+            _, cost =self.session.run((self.dis_train, self.dis_cost), feed_dict=feed_dict)
         else:
             if print_results:
                 feed_dict[self.dropout] = 1
@@ -231,7 +232,8 @@ class NeuralNet(object):
                 outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
                 visualizeImages(outImages[:50, :, :, :], numRows=5)
             feed_dict[self.dropout] = 0.5
-            self.session.run(self.gen_train, feed_dict=feed_dict)
+            _, cost = self.session.run((self.gen_train, self.gen_cost), feed_dict=feed_dict)
+        return cost
 
 
 

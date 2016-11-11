@@ -29,34 +29,37 @@ class NeuralNet(object):
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
         self.session = sess
-        self.saver = tf.train.Saver(self.vardict, max_to_keep=3)
-        checkpoint_path, checkpoint_num = self._find_checkpoint_to_restore(chkptDir, chkptName)
-        if checkpoint_path:
-            print ("restoring checkpoint ", checkpoint_path)
-            self.saver.restore(sess, checkpoint_path)
-        else:
-            checkpoint_num = 0
-        self.checkpoint_dir = chkptDir
-        self.checkpoint_name = chkptName
-        self.checkpoint_num = checkpoint_num
+        #load existing weights if we have a saved checkpoint. Otherwise, prepare new saver object
+        self._createOrRestoreCheckpoint(chkptDir, chkptName)
 
     def saveCheckpoint(self, runsSinceLast):
         self.checkpoint_num = self.checkpoint_num + runsSinceLast
         self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
 
-    def _find_checkpoint_to_restore(self, chkptDir="./checkpoints", file_name="NN.ckpt"):
+    def _createOrRestoreCheckpoint(self, chkptDir="./checkpoints", fileName="NN.ckpt", numToKeep=3):
+        #create the saver object
+        self.saver = tf.train.Saver(self.vardict, max_to_keep=numToKeep)
         highest_found = 0
         path_found = None
         if not path.exists(chkptDir):
             mkdir(chkptDir)
+        #look for highest existing checkpoint
         for subdir, dirs, files in walk(chkptDir):
             for file in files:
-                if file_name in file and ".meta" not in file and ".txt" not in file:
+                if fileName in file and ".meta" not in file and ".txt" not in file:
                     iteration_num = int(file.split("-")[-1])
                     if iteration_num >= highest_found:
                         highest_found = iteration_num
                         path_found = path.join(subdir, file)
-        return path_found, highest_found
+        #set the file name, file directory, and current number of the first checkpoint
+        self.checkpoint_num = highest_found
+        self.checkpoint_name = fileName
+        self.checkpoint_dir = chkptDir
+        if path_found:
+            #if existing one was found, restore previous checkpoint
+            print ("restoring checkpoint ", path_found)
+            self.saver.restore(self.session, path_found)
+
 
     def _buildGenerator(self, fcSize, train=True):
         sqrtFc = int(sqrt(fcSize))

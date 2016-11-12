@@ -58,6 +58,8 @@ def visualizeImages(imageMat, numRows=5, maxImgSize=64, fileName="images_set.png
         rowStart = rowEnd
     if maxImgSize is not None:
         CombinedImage = imresize(CombinedImage, [maxImgSize * numRows, maxImgSize * numCols])
+    if os.path.exists(fileName):
+        os.remove(fileName)
     imsave(fileName, CombinedImage)
 
 def csvFromOutput(isTruth, age, gender,guessedTrue, guessedAge, guessedGender, fileName="batchResults.csv"):

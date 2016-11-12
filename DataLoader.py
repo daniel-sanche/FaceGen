@@ -302,18 +302,22 @@ class DataLoader(object):
         bufferMax:  the max size of the buffer that holds ready batches
         useCached:  if true, will try to load the first batch from disk to improve initial load time
     """
-    def __init__(self, indices, csvData, numPerBin=100, imageSize=100, bufferMax=5, useCached=True):
+    def __init__(self, indices, csvData, numWorkerThreads=1, numPerBin=100, imageSize=100, bufferMax=5, useCached=True, debugLogs=False):
         self.imageSize=imageSize
         self.epochNum=0
         self.indices = indices
         self.csvData = csvData
         self.numPerBin = numPerBin
         self.lock = threading.Condition()
-        self.thread = threading.Thread(target=self._thread_runner)
+        threadList = []
+        for i in range(numWorkerThreads):
+            threadList += [threading.Thread(target=self._thread_runner)]
+        self.threadList = threadList
         self.needsCache=False
         self.bufferMax = bufferMax
         self.buffer = []
         self.cachePath="./batch_cache.p"
+        self.debug = debugLogs
         #if we are using caching, retore the old cache file, or mark that we need to generate one
         if useCached:
             if os.path.exists(self.cachePath):
@@ -343,6 +347,8 @@ class DataLoader(object):
             while len(self.buffer) >= self.bufferMax:
                 self.lock.wait()
             self.buffer.append(batchData)
+            if self.debug:
+                print("Added Item [buffer size: " + str(len(self.buffer)) + "]")
             self.lock.notify()
             #generate cache file if necessary
             if self.needsCache:
@@ -362,7 +368,8 @@ class DataLoader(object):
     start the data loading process
     """
     def start(self):
-        self.thread.start()
+        for thread in self.threadList:
+            thread.start()
 
     """
     Grab the next batch off the DataLoader's buffer
@@ -379,6 +386,8 @@ class DataLoader(object):
             print("[Empty Buffer. Waiting on an item]")
             self.lock.wait()
         nextBatch = self.buffer.pop(0)
+        if self.debug:
+            print("Removed Item [buffer size: " + str(len(self.buffer)) + "]")
         self.lock.notify()
         self.lock.release()
         return nextBatch
@@ -428,7 +437,7 @@ if __name__ == "__main__":
 
     csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
     #run in new thread
-    loader = DataLoader(indices, csvdata, numPerBin=1000, imageSize=60)
+    loader = DataLoader(indices, csvdata, numPerBin=10, imageSize=60, numWorkerThreads=5)
     loader.start()
     while True:
         nextData = loader.getData()

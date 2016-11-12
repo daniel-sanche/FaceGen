@@ -6,6 +6,8 @@ def trainNetwork(network, lastCost, saveInterval=500, printInterval=100, costRed
     reachedGoal = False
     i = 0
     cost = lastCost
+    goalCost = lastCost * costReductionGoal
+    print ("Goal Cost: " + str(goalCost))
     while not reachedGoal:
         batchDict = loader.getData()
         batchImage = batchDict["image"]
@@ -14,7 +16,7 @@ def trainNetwork(network, lastCost, saveInterval=500, printInterval=100, costRed
         batchImage = batchImage.reshape([batchImage.shape[0], -1])
         if i % printInterval == 0:
             cost = network.printStatus(batchImage, batchSex, batchAge)
-            reachedGoal = cost <= lastCost * costReductionGoal
+            reachedGoal = cost <= goalCost
         network.train(batchImage, batchSex, batchAge)
         if (i % saveInterval == 0 and i != 0) or reachedGoal:
             network.saveCheckpoint(saveInterval)

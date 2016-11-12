@@ -2,7 +2,7 @@ from NeuralNet import  NeuralNet, NetworkType
 from DataLoader import  LoadFilesData, DataLoader
 import numpy as np
 
-def trainNetwork(network, lastCost, saveInterval=10, printInterval=2, costReductionGoal=0.9):
+def trainNetwork(network, lastCost, saveInterval=500, printInterval=100, costReductionGoal=0.9):
     reachedGoal = False
     i = 0
     while not reachedGoal:
@@ -31,9 +31,9 @@ if __name__ == "__main__":
 
     saveSteps = 10
     image_size = 64
-    numPerBin = 10
+    numPerBin = 15
     batch_size = numPerBin * 8 * 2
-    loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size)
+    loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size, numWorkerThreads=15, bufferMax=20, debugLogs=False)
     loader.start()
 
     # start training

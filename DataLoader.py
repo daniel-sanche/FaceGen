@@ -8,6 +8,7 @@ import pickle
 import time
 from PIL import Image
 import threading
+from copy import deepcopy
 from random import  shuffle
 """"
 creates a csv file containing information on all the faces
@@ -161,7 +162,7 @@ def createIndices(csvdata, ageRangeLimits=[20, 30, 40, 50, 60, 70, 80, 101]):
     womenArr = [[] for x in ageRangeLimits]
     for i in range(numRows):
         male = csvdata["isMale"][i] > 0.5
-        age = int(csvdata["age"][i])
+        age = csvdata["age"][i]
         binNum = 0
         for binLimit in ageRangeLimits:
             if age < binLimit:
@@ -305,13 +306,14 @@ class DataLoader(object):
     def __init__(self, indices, csvData, numWorkerThreads=1, numPerBin=100, imageSize=100, bufferMax=5, useCached=True, debugLogs=False):
         self.imageSize=imageSize
         self.epochNum=0
-        self.indices = indices
         self.csvData = csvData
         self.numPerBin = numPerBin
         self.lock = threading.Condition()
         threadList = []
         for i in range(numWorkerThreads):
-            threadList += [threading.Thread(target=self._thread_runner)]
+            threadIndex = deepcopy(indices)
+            _randomizeIndices(threadIndex)
+            threadList += [threading.Thread(target=self._thread_runner, args=[threadIndex])]
         self.threadList = threadList
         self.needsCache=False
         self.bufferMax = bufferMax
@@ -326,7 +328,6 @@ class DataLoader(object):
                 file.close()
                 #check to ensure size is right
                 if self.buffer[0]["image"].shape[1] == imageSize and self.buffer[0]["image"].shape[0] % numPerBin == 0:
-                    _randomizeIndices(self.indices)
                     print("restored cache [" + str(len(self.buffer)) + " in buffer]")
                 else:
                     self.needsCache = True
@@ -339,10 +340,10 @@ class DataLoader(object):
     this function is the internal thread that is run by the class
     continuously loads batches of data from disk, at puts them in the ready buffer
     """
-    def _thread_runner(self):
+    def _thread_runner(self, indices):
         currentState = None
         while(True):
-            batchData, currentState, didFinish = getBatch(self.indices, self.csvData, numPerBin=self.numPerBin, prevState=currentState, imageSize=self.imageSize)
+            batchData, currentState, didFinish = getBatch(indices, self.csvData, numPerBin=self.numPerBin, prevState=currentState, imageSize=self.imageSize)
             self.lock.acquire()
             while len(self.buffer) >= self.bufferMax:
                 self.lock.wait()

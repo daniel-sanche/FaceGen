@@ -1,6 +1,24 @@
 from NeuralNet import  NeuralNet, NetworkType
 from DataLoader import  LoadFilesData, DataLoader
 
+def trainNetwork(network, lastCost, saveInterval=10, printInterval=10, costReductionGoal=0.9):
+    network.restoreNewestCheckpoint()
+    reachedGoal = False
+    i = 0
+    while not reachedGoal:
+        batchDict = loader.getData()
+        batchImage = batchDict["image"]
+        batchAge = batchDict["age"]
+        batchSex = batchDict["sex"]
+        batchImage = batchImage.reshape([batchImage.shape[0], -1])
+        cost = network.train(batchImage, batchSex, batchAge, print_results=(i % printInterval == 0))
+        if i % saveInterval == 0 and i != 0:
+            discriminator.saveCheckpoint(saveInterval)
+        i = i + 1
+        reachedGoal = cost <= lastCost * costReductionGoal
+    #rached goal. Save state final time
+    discriminator.saveCheckpoint(i%saveInterval)
+    return cost
 
 if __name__ == "__main__":
     # initialize the data loader
@@ -19,14 +37,15 @@ if __name__ == "__main__":
     # start training
     discriminator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size,
                               noise_size=20)
-    i = 0
+    generator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size,
+                              noise_size=20)
+
+    disCurrentCost = float("inf")
+    genCurrentCost = float("inf")
+
     while True:
-        batchDict = loader.getData()
-        batchImage = batchDict["image"]
-        batchAge = batchDict["age"]
-        batchSex = batchDict["sex"]
-        batchImage = batchImage.reshape([batch_size, -1])
-        discriminator.train(batchImage, batchSex, batchAge, print_results=i % saveSteps == 0)
-        if i % saveSteps == 0 and i != 0:
-            discriminator.saveCheckpoint(saveSteps)
-        i = i + 1
+        print("__GENERATOR__")
+        genCurrentCost = trainNetwork(generator, genCurrentCost)
+        print("__DISCRIMINATOR__")
+        disCurrentCost = trainNetwork(discriminator, disCurrentCost)
+

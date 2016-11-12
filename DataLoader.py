@@ -338,7 +338,6 @@ class DataLoader(object):
                 self.lock.wait()
             self.buffer.append(batchData)
             self.lock.notify()
-            print("added item [" + str(len(self.buffer)) + " in buffer]")
             #generate cache file if necessary
             if self.needsCache:
                 file = open(self.cachePath, "wb")
@@ -371,10 +370,9 @@ class DataLoader(object):
     def getData(self):
         self.lock.acquire()
         while len(self.buffer) == 0:
-            print("waiting on an item...")
+            print("[Empty Buffer. Waiting on an item]")
             self.lock.wait()
         nextBatch = self.buffer.pop(0)
-        print("removed item [" + str(len(self.buffer)) + " in buffer]")
         self.lock.notify()
         self.lock.release()
         return nextBatch

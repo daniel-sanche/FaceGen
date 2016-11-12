@@ -234,9 +234,10 @@ class NeuralNet(object):
     """
 
     def saveCheckpoint(self, runsSinceLast):
-        self.checkpoint_num = self.checkpoint_num + runsSinceLast
-        self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
-        print(self.checkpoint_name + " " + str(self.checkpoint_num) + " saved")
+        if runsSinceLast > 0:
+            self.checkpoint_num = self.checkpoint_num + runsSinceLast
+            self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
+            print(self.checkpoint_name + " " + str(self.checkpoint_num) + " saved")
 
 
     def restoreNewestCheckpoint(self):

@@ -137,7 +137,7 @@ class NeuralNet(object):
         dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, num_pixels])
         dis_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         dis_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
-        dis_labels_truth = tf.concat(0, [tf.ones([batch_size, 1]), tf.zeros([batch_size, 1])])
+        dis_labels_truth = tf.concat(0, [tf.ones([self.batch_size, 1]), tf.zeros([self.batch_size, 1])])
         dis_labels_age = tf.concat(0, [dis_input_age, self.gen_input_age])
         dis_labels_gender = tf.concat(0, [dis_input_gender, self.gen_input_gender])
         #[1000, 12,288]
@@ -185,7 +185,7 @@ class NeuralNet(object):
         disTruthCost = tf.nn.l2_loss(truthDiff)
         disSexCost = tf.nn.l2_loss(tf.mul(sexDiff, truthOutput))
         disAgeCost = tf.nn.l2_loss(tf.mul(ageDiff, truthOutput))
-        disCombinedCost = tf.add(tf.add(disSexCost, disAgeCost), disTruthCost) / batch_size * 2
+        disCombinedCost = tf.add(tf.add(disSexCost, disAgeCost), disTruthCost) / self.batch_size * 2
         disTrainStep = tf.train.AdamOptimizer(learningRate).minimize(disCombinedCost)
 
         #generator cost is the L2 loss of truth, gender, and age values
@@ -194,7 +194,7 @@ class NeuralNet(object):
         genDiff = tf.mul(tf.sub(truthOutput, fakeLabels), fakeLabels)
         genAgeDiff = tf.mul(ageDiff, fakeLabels)
         genSexDiff = tf.mul(sexDiff, fakeLabels)
-        genCost = tf.nn.l2_loss(tf.concat(1, [tf.scalar_mul(genTruthWeight, genDiff), genAgeDiff, genSexDiff])) / batch_size
+        genCost = tf.nn.l2_loss(tf.concat(1, [tf.scalar_mul(genTruthWeight, genDiff), genAgeDiff, genSexDiff])) / self.batch_size
         genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCost)
 
         #calculate the accuracy for all predictions
@@ -293,31 +293,30 @@ class NeuralNet(object):
             _, cost = self.session.run((self.gen_train, self.gen_cost), feed_dict=feed_dict)
         return cost
 
+if __name__ == "__main__":
+    #initialize the data loader
+    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
+    csvPath = "./dataset.csv"
+    indicesPath = "./indices.p"
+    csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
 
+    saveSteps = 10
+    image_size = 64
+    numPerBin = 10
+    batch_size = numPerBin * 8 * 2
+    loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size)
+    loader.start()
 
-#initialize the data loader
-datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
-csvPath = "./dataset.csv"
-indicesPath = "./indices.p"
-csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
-
-saveSteps = 10
-image_size = 64
-numPerBin = 10
-batch_size = numPerBin * 8 * 2
-loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size)
-loader.start()
-
-#start training
-discriminator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size, noise_size=20)
-i=0
-while True:
-    batchDict = loader.getData()
-    batchImage = batchDict["image"]
-    batchAge = batchDict["age"]
-    batchSex = batchDict["sex"]
-    batchImage = batchImage.reshape([batch_size, -1])
-    discriminator.train(batchImage, batchSex, batchAge, print_results=i%saveSteps==0)
-    if i%saveSteps==0 and i != 0:
-        discriminator.saveCheckpoint(saveSteps)
-    i=i+1
+    #start training
+    discriminator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size, noise_size=20)
+    i=0
+    while True:
+        batchDict = loader.getData()
+        batchImage = batchDict["image"]
+        batchAge = batchDict["age"]
+        batchSex = batchDict["sex"]
+        batchImage = batchImage.reshape([batch_size, -1])
+        discriminator.train(batchImage, batchSex, batchAge, print_results=i%saveSteps==0)
+        if i%saveSteps==0 and i != 0:
+            discriminator.saveCheckpoint(saveSteps)
+        i=i+1

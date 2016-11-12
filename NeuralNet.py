@@ -273,46 +273,52 @@ class NeuralNet(object):
         self.checkpoint_num = highest_found
 
 
-    def train(self, truthImages, truthGenders, truthAges, print_results):
+    def _createFeedDict(self, truthImages, truthGenders, truthAges, dropout=0.5):
         batch_size = self.batch_size
         noise_batch = np.random.random_sample((batch_size, self.noise_size))
-        ageVec = (np.linspace(start=self.age_range[0],stop=self.age_range[1],num=batch_size)+np.random.sample(batch_size))
+        ageVec = (
+        np.linspace(start=self.age_range[0], stop=self.age_range[1], num=batch_size) + np.random.sample(batch_size))
         ageVec = ageVec.reshape([batch_size, 1])
         genderVec = np.tile(np.array([0, 1], dtype=bool), int(batch_size / 2)).reshape([batch_size, 1])
         feed_dict = {self.gen_input_noise: noise_batch, self.gen_input_age: ageVec,
-                     self.gen_input_gender: genderVec, self.dropout: 0.5, self.dis_input_gender:truthGenders,
-                     self.dis_input_age:truthAges, self.dis_input_image:truthImages}
+                     self.gen_input_gender: genderVec, self.dropout: dropout, self.dis_input_gender: truthGenders,
+                     self.dis_input_age: truthAges, self.dis_input_image: truthImages}
+        return feed_dict, ageVec, genderVec
+
+    def train(self, truthImages, truthGenders, truthAges):
+        feed_dict,_,_ = self._createFeedDict(truthImages, truthGenders, truthAges, dropout=0.5)
         if self.trainingType == NetworkType.Discriminator:
-            if print_results:
-                feed_dict[self.dropout] = 1
-                outputList = (self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
-                              self.dis_cost_total, self.dis_cost_truth, self.dis_cost_age, self.dis_cost_sex,
-                              self.dis_accuracy_truth, self.dis_accuracy_age,self.dis_accuracy_sex)
-                outT, outA, outS, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
-                df = pd.DataFrame(np.array([costTot,costT, costA, costS, accT, accA, accS]).reshape(1,-1), columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Truth Acc","Age Acc","Sex Acc"], index=["Discriminator"])
-                print(df)
-                csvFromOutput(np.concatenate([np.ones([batch_size,1]), np.zeros([batch_size,1])]),
-                              np.concatenate([truthAges,ageVec]),
-                              np.concatenate([truthGenders,genderVec]),
-                              outT, outA, outS)
-            feed_dict[self.dropout] = 0.5
             _, cost =self.session.run((self.dis_train, self.dis_cost_total), feed_dict=feed_dict)
         else:
-            if print_results:
-                feed_dict[self.dropout] = 1
-                outputList = (self.gen_output,
-                              self.gen_cost_total,self.gen_cost_truth, self.gen_cost_age, self.gen_cost_sex,
-                              self.gen_accuracy_truth,self.gen_accuracy_age,self.gen_accuracy_sex)
-                outImages, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
-                df = pd.DataFrame(np.array([costTot, costT, costA, costS, accT, accA, accS]).reshape(1, -1),
-                                  columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Truth Acc", "Age Acc",
-                                           "Sex Acc"], index=["Generator"])
-                print(df)
-                outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
-                visualizeImages(outImages[:50, :, :, :], numRows=5)
-            feed_dict[self.dropout] = 0.5
             _, cost = self.session.run((self.gen_train, self.gen_cost_total), feed_dict=feed_dict)
         return cost
+
+    def printStatus(self, truthImages, truthGenders, truthAges):
+        feed_dict, ageVec, genderVec = self._createFeedDict(truthImages, truthGenders, truthAges, dropout=1)
+
+        if self.trainingType == NetworkType.Discriminator:
+            outputList = (self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
+                          self.dis_cost_total, self.dis_cost_truth, self.dis_cost_age, self.dis_cost_sex,
+                          self.dis_accuracy_truth, self.dis_accuracy_age,self.dis_accuracy_sex)
+            outT, outA, outS, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
+            df = pd.DataFrame(np.array([costTot,costT, costA, costS, accT, accA, accS]).reshape(1,-1), columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Truth Acc","Age Acc","Sex Acc"], index=["Discriminator"])
+            print(df)
+        else:
+            outputList = (self.gen_output, self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
+                          self.gen_cost_total,self.gen_cost_truth, self.gen_cost_age, self.gen_cost_sex,
+                          self.gen_accuracy_truth,self.gen_accuracy_age,self.gen_accuracy_sex)
+            outImages, outT, outA, outS, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
+            df = pd.DataFrame(np.array([costTot, costT, costA, costS, accT, accA, accS]).reshape(1, -1),
+                              columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Truth Acc", "Age Acc",
+                                       "Sex Acc"], index=["Generator"])
+            print(df)
+            outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
+            visualizeImages(outImages[:50, :, :, :], numRows=5)
+        csvFromOutput(np.concatenate([np.ones([self.batch_size, 1]), np.zeros([self.batch_size, 1])]),
+                      np.concatenate([truthAges, ageVec]),
+                      np.concatenate([truthGenders, genderVec]),
+                      outT, outA, outS)
+        return costTot
 
 
 if __name__ == "__main__":

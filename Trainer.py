@@ -11,12 +11,14 @@ def trainNetwork(network, lastCost, saveInterval=10, printInterval=2, costReduct
         batchAge = batchDict["age"]
         batchSex = batchDict["sex"]
         batchImage = batchImage.reshape([batchImage.shape[0], -1])
-        cost = network.train(batchImage, batchSex, batchAge, print_results=(i % printInterval == 0))
+        if i % printInterval == 0:
+            network.printStatus(batchImage, batchSex, batchAge)
+        cost = network.train(batchImage, batchSex, batchAge)
         if i % saveInterval == 0 and i != 0:
             discriminator.saveCheckpoint(saveInterval)
         i = i + 1
         reachedGoal = cost <= lastCost * costReductionGoal
-    #rached goal. Save state final time
+    #reached goal. Save state final time
     discriminator.saveCheckpoint(i%saveInterval)
     return cost
 

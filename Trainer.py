@@ -1,8 +1,8 @@
 from NeuralNet import  NeuralNet, NetworkType
 from DataLoader import  LoadFilesData, DataLoader
+import numpy as np
 
-def trainNetwork(network, lastCost, saveInterval=10, printInterval=10, costReductionGoal=0.9):
-    network.restoreNewestCheckpoint()
+def trainNetwork(network, lastCost, saveInterval=10, printInterval=2, costReductionGoal=0.9):
     reachedGoal = False
     i = 0
     while not reachedGoal:
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     # start training
     discriminator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size,
                               noise_size=20)
-    generator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size,
+    generator = NeuralNet(trainingType=NetworkType.Generator, batch_size=batch_size, image_size=image_size,
                               noise_size=20)
 
     disCurrentCost = float("inf")
@@ -47,5 +47,7 @@ if __name__ == "__main__":
         print("__GENERATOR__")
         genCurrentCost = trainNetwork(generator, genCurrentCost)
         print("__DISCRIMINATOR__")
+        discriminator.restoreNewestCheckpoint()
         disCurrentCost = trainNetwork(discriminator, disCurrentCost)
+        generator.restoreNewestCheckpoint()
 

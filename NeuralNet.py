@@ -5,6 +5,7 @@ import numpy as np
 from Visualization import visualizeImages, csvFromOutput
 from enum import Enum
 from os import walk, path, mkdir
+import pandas as pd
 
 class NetworkType(Enum):
     Generator=0,
@@ -96,6 +97,8 @@ class NeuralNet(object):
         self.checkpoint_dir = chkptDir
         self.checkpoint_num = 0
         self.restoreNewestCheckpoint()
+        pd.set_option('display.float_format', lambda x: '%.4f' % x)
+        pd.set_option('expand_frame_repr', False)
 
     def _buildGenerator(self, fcSize, train=True):
         sqrtFc = int(sqrt(fcSize))
@@ -173,7 +176,7 @@ class NeuralNet(object):
         self.dis_label_age = dis_labels_age
         self.dis_label_gender = dis_labels_gender
 
-    def _buildCostFunctions(self, learningRate=1e-4, genTruthWeight=5, ageDiffForAcc=0.1):
+    def _buildCostFunctions(self, learningRate=1e-4, ageDiffForAcc=0.1):
         truthOutput, ageOutput, sexOutput = tf.split(1, 3, self.dis_output)
         scaledAge = tf.scalar_mul(self.age_range[1], ageOutput)
         truthDiff = tf.sub(truthOutput, self.dis_label_truth)
@@ -182,20 +185,23 @@ class NeuralNet(object):
 
         #discriminator cost for true images is the sum of the error in the truth, gender, and age values
         #error in generated images is only the error in the truth value, because we don't want to learn false patterns
-        disTruthCost = tf.nn.l2_loss(truthDiff)
-        disSexCost = tf.nn.l2_loss(tf.mul(sexDiff, truthOutput))
-        disAgeCost = tf.nn.l2_loss(tf.mul(ageDiff, truthOutput))
-        disCombinedCost = tf.add(tf.add(disSexCost, disAgeCost), disTruthCost) / self.batch_size * 2
+        disTruthCost = tf.nn.l2_loss(truthDiff) / self.batch_size * 2
+        disSexCost = tf.nn.l2_loss(tf.mul(sexDiff, self.dis_label_truth)) / self.batch_size
+        disAgeCost = tf.nn.l2_loss(tf.mul(ageDiff, self.dis_label_truth)) / self.batch_size
+        disCombinedCost = tf.add(tf.add(disSexCost, disAgeCost), disTruthCost)
         disTrainStep = tf.train.AdamOptimizer(learningRate).minimize(disCombinedCost)
 
         #generator cost is the L2 loss of truth, gender, and age values
         #truth value is weighted, because making realistic humans should be a higher priority
         fakeLabels = tf.cast(tf.logical_not(tf.cast(self.dis_label_truth, tf.bool)), tf.float32)
-        genDiff = tf.mul(tf.sub(truthOutput, fakeLabels), fakeLabels)
+        genTruthDiff = tf.mul(tf.sub(truthOutput, fakeLabels), fakeLabels)
         genAgeDiff = tf.mul(ageDiff, fakeLabels)
         genSexDiff = tf.mul(sexDiff, fakeLabels)
-        genCost = tf.nn.l2_loss(tf.concat(1, [tf.scalar_mul(genTruthWeight, genDiff), genAgeDiff, genSexDiff])) / self.batch_size
-        genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCost)
+        genTruthCost = tf.nn.l2_loss(genTruthDiff) / self.batch_size
+        genAgeCost = tf.nn.l2_loss(genAgeDiff) / self.batch_size
+        genSexCost = tf.nn.l2_loss(genSexDiff) / self.batch_size
+        genCombinedCost = tf.add(tf.add(genTruthCost, genAgeCost), genSexCost)
+        genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCombinedCost)
 
         #calculate the accuracy for all predictions
         sexCorrect = tf.cast(tf.equal(tf.round(self.dis_label_gender), tf.round(sexOutput)), tf.float32)
@@ -219,12 +225,18 @@ class NeuralNet(object):
         self.dis_out_gender = sexOutput
         self.dis_out_truth = truthOutput
         self.dis_train = disTrainStep
-        self.dis_cost = disCombinedCost
+        self.dis_cost_total = disCombinedCost
+        self.dis_cost_truth = disTruthCost
+        self.dis_cost_age = disAgeCost
+        self.dis_cost_sex = disSexCost
         self.dis_accuracy_truth = disTruthAccuracy
         self.dis_accuracy_age = disAgeAccuracy
         self.dis_accuracy_sex = disSexAccuracy
         self.gen_train = genTrainStep
-        self.gen_cost = genCost
+        self.gen_cost_total = genCombinedCost
+        self.gen_cost_age = genAgeCost
+        self.gen_cost_sex = genSexCost
+        self.gen_cost_truth = genTruthCost
         self.gen_accuracy_truth = genTruthAccuracy
         self.gen_accuracy_age = genAgeAccuracy
         self.gen_accuracy_sex = genSexAccuracy
@@ -273,26 +285,35 @@ class NeuralNet(object):
         if self.trainingType == NetworkType.Discriminator:
             if print_results:
                 feed_dict[self.dropout] = 1
-                outputList = (self.dis_out_truth, self.dis_out_gender, self.dis_out_age, self.dis_cost,self.dis_accuracy_age,self.dis_accuracy_sex,self.dis_accuracy_truth)
-                outTruth, outSex, outAge, cost, ageAcc,sexAcc, truthAcc = self.session.run(outputList, feed_dict=feed_dict)
-                print("cost: ", cost, " Accuracies: (t:", truthAcc,"a:",ageAcc,"s:",sexAcc,")")
+                outputList = (self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
+                              self.dis_cost_total, self.dis_cost_truth, self.dis_cost_age, self.dis_cost_sex,
+                              self.dis_accuracy_truth, self.dis_accuracy_age,self.dis_accuracy_sex)
+                outT, outA, outS, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
+                df = pd.DataFrame(np.array([costTot,costT, costA, costS, accT, accA, accS]).reshape(1,-1), columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Truth Acc","Age Acc","Sex Acc"], index=["Discriminator"])
+                print(df)
                 csvFromOutput(np.concatenate([np.ones([batch_size,1]), np.zeros([batch_size,1])]),
                               np.concatenate([truthAges,ageVec]),
                               np.concatenate([truthGenders,genderVec]),
-                              outTruth, outAge, outSex)
+                              outT, outA, outS)
             feed_dict[self.dropout] = 0.5
-            _, cost =self.session.run((self.dis_train, self.dis_cost), feed_dict=feed_dict)
+            _, cost =self.session.run((self.dis_train, self.dis_cost_total), feed_dict=feed_dict)
         else:
             if print_results:
                 feed_dict[self.dropout] = 1
-                outputList = (self.gen_output, self.gen_cost,self.gen_accuracy_age,self.gen_accuracy_sex,self.gen_accuracy_truth)
-                outImages, cost, ageAcc,sexAcc, truthAcc = self.session.run(outputList, feed_dict=feed_dict)
-                print("cost: ", cost, " Accuracies: (t:", truthAcc,"a:",ageAcc,"s:",sexAcc,")")
+                outputList = (self.gen_output,
+                              self.gen_cost_total,self.gen_cost_truth, self.gen_cost_age, self.gen_cost_sex,
+                              self.gen_accuracy_truth,self.gen_accuracy_age,self.gen_accuracy_sex)
+                outImages, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
+                df = pd.DataFrame(np.array([costTot, costT, costA, costS, accT, accA, accS]).reshape(1, -1),
+                                  columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Truth Acc", "Age Acc",
+                                           "Sex Acc"], index=["Generator"])
+                print(df)
                 outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
                 visualizeImages(outImages[:50, :, :, :], numRows=5)
             feed_dict[self.dropout] = 0.5
-            _, cost = self.session.run((self.gen_train, self.gen_cost), feed_dict=feed_dict)
+            _, cost = self.session.run((self.gen_train, self.gen_cost_total), feed_dict=feed_dict)
         return cost
+
 
 if __name__ == "__main__":
     #initialize the data loader

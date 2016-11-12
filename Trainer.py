@@ -24,7 +24,7 @@ def trainNetwork(network, lastCost, saveInterval=10, printInterval=2, costReduct
 
 if __name__ == "__main__":
     # initialize the data loader
-    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
+    datasetDir = "/home/sanche/Datasets/IMDB-WIKI"
     csvPath = "./dataset.csv"
     indicesPath = "./indices.p"
     csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)

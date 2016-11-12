@@ -65,12 +65,18 @@ def createCsv(datasetDir, ageRange=[10, 100], minScore=0, minRes=(60*60), filter
             fullPath = os.path.join(datasetDir, fileType + "_crop", pathArr[0])
             path[i] = fullPath
             #add image data
-            img = Image.open(fullPath)
-            imFormat[i] = img.mode
-            w, h = img.size
-            imHeight[i] = w
-            imWidth[i] = h
-            imRes[i] = w * h
+            try:
+                img = Image.open(fullPath)
+                imFormat[i] = img.mode
+                w, h = img.size
+                imHeight[i] = w
+                imWidth[i] = h
+                imRes[i] = w * h
+            except IOError:
+                print("error reading file " + fullPath)
+                imHeight[i] = -1
+                imWidth[i] = -1
+                imRes[i] = -1
             if i % 10000 == 0:
                 print(str(i) + "/" + str(numRows))
 
@@ -154,7 +160,7 @@ def createIndices(csvdata, ageRangeLimits=[20, 30, 40, 50, 60, 70, 80, 101]):
     menArr = [[] for x in ageRangeLimits]
     womenArr = [[] for x in ageRangeLimits]
     for i in range(numRows):
-        male = bool(csvdata["isMale"][i])
+        male = csvdata["isMale"][i] > 0.5
         age = int(csvdata["age"][i])
         binNum = 0
         for binLimit in ageRangeLimits:
@@ -398,7 +404,7 @@ def LoadFilesData(datasetDir, csvPath="./dataset.csv", indicesPath="./indices.p"
     else:
         print("creating " + csvPath + "...")
         csvdata = createCsv(datasetDir)
-        csvdata.to_csv(csvPath, index=False)
+        csvdata.to_csv(csvPath, index=False, encoding='utf-8')
         print(csvPath + " saved")
 
     if os.path.exists(indicesPath):

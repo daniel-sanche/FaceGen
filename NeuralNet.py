@@ -1,9 +1,7 @@
 from DataLoader import DataLoader, LoadFilesData
 import tensorflow as tf
-from math import sqrt, ceil
+from math import sqrt
 import numpy as np
-from nnLayers import create_fully_connected_layer, create_max_pool_layer, create_deconv_layer, \
-    create_conv_layer, create_output_layer, create_unpool_layer
 from Visualization import visualizeImages, csvFromOutput
 from enum import Enum
 from os import walk, path, mkdir
@@ -13,7 +11,71 @@ class NetworkType(Enum):
     Discriminator=1
 
 class NeuralNet(object):
+    """"""
+    """
+    Neural Net Layers
+    """
+    def create_conv_layer(self, prev_layer, new_depth, prev_depth, trainable=True, name_prefix="conv", patch_size=3):
+        W, b = self.create_variables([patch_size, patch_size, prev_depth, new_depth], [new_depth],
+                                          name_prefix=name_prefix, trainable=trainable)
+        new_layer = tf.nn.conv2d(prev_layer, W, strides=[1, 1, 1, 1], padding='SAME')
+        return tf.nn.relu(new_layer + b)
+
+    def create_max_pool_layer(self, prev_layer):
+        return tf.nn.max_pool(prev_layer, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+    def create_fully_connected_layer(self,prev_layer, new_size, prev_size, dropout_prob, trainable=True, name_prefix="fc"):
+        W, b = self.create_variables([prev_size, new_size], [new_size], name_prefix=name_prefix,trainable=trainable)
+        new_layer = tf.nn.relu(tf.matmul(prev_layer, W) + b)
+        return tf.nn.dropout(new_layer, dropout_prob)
+
+    def create_output_layer(self, prev_layer, prev_size, num_classes, trainable=True, name_prefix="out"):
+        W, b = self.create_variables([prev_size, num_classes], [num_classes], name_prefix=name_prefix,trainable=trainable)
+        return tf.nn.sigmoid(tf.matmul(prev_layer, W) + b)
+
+    def create_deconv_layer(self, prev_layer, new_depth, prev_depth, trainable=True, name_prefix="deconv", patch_size=3):
+        input_shape = prev_layer.get_shape().as_list()
+        new_shape = input_shape
+        new_shape[-1] = new_depth
+        W, b = self.create_variables([patch_size, patch_size, new_depth, prev_depth], [new_depth],
+                                          name_prefix=name_prefix, trainable=trainable)
+        new_layer = tf.nn.conv2d_transpose(prev_layer, W, new_shape, strides=[1, 1, 1, 1], padding='SAME')
+        return tf.nn.relu(new_layer + b)
+
+    def create_variables(self, w_size, b_size, name_prefix="untitled", trainable=True, w_stddev=0.1, b_val=0.1):
+        W_name = name_prefix + "-W"
+        b_name = name_prefix + "-b"
+        W = tf.Variable(tf.truncated_normal(w_size, stddev=w_stddev),
+                        trainable=trainable, name=W_name)
+        b = tf.Variable(tf.constant(b_val, shape=b_size), trainable=trainable, name=b_name)
+        self.vardict[W_name] = W
+        self.vardict[b_name] = b
+        return W, b
+
+    def create_unpool_layer(self, prev_layer):
+        shape_list = prev_layer.get_shape().as_list()
+        channel_size = shape_list[-1]
+        x_size = shape_list[-3]
+        y_size = shape_list[-2]
+        batch_size = shape_list[0]
+        batch_layers = channel_size * batch_size
+        spacers = tf.zeros([1, (y_size * x_size * 3) * batch_layers])
+        val_indices = np.array([x for x in range(0, x_size * y_size * 4 * batch_layers) if
+                                x % 2 == 0 and int(x // (x_size * 2)) % 2 == 0]).reshape(shape_list)
+        space_indices = np.array([x for x in range(0, x_size * y_size * 4 * batch_layers) if
+                                  x % 2 != 0 or int(x // (x_size * 2)) % 2 != 0]).reshape([1, -1])
+        stitched = tf.dynamic_stitch([val_indices, space_indices], [prev_layer, spacers])
+        new_size = shape_list
+        new_size[-3] = x_size * 2
+        new_size[-2] = y_size * 2
+        reshaped_stitched = tf.reshape(stitched, new_size)
+        return reshaped_stitched
+
+    """
+    Initialization Helpers
+    """
     def __init__(self, trainingType, batch_size=1000, chkptDir="./checkpoints", chkptName="FaceGen.ckpt",image_size=64, noise_size=20, age_range=[10, 100], learningRate=1e-4):
+        self.vardict = {}
         self.trainingType = trainingType
         self.age_range = age_range
         self.batch_size = batch_size
@@ -35,31 +97,6 @@ class NeuralNet(object):
         self.checkpoint_num = 0
         self.restoreNewestCheckpoint()
 
-    def saveCheckpoint(self, runsSinceLast):
-        self.checkpoint_num = self.checkpoint_num + runsSinceLast
-        self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
-        print(self.checkpoint_name + " " + str(self.checkpoint_num) + " saved")
-
-
-    def restoreNewestCheckpoint(self):
-        highest_found = 0
-        path_found = None
-        for subdir, dirs, files in walk(self.checkpoint_dir):
-            for file in files:
-                if self.checkpoint_name in file and ".meta" not in file and ".txt" not in file:
-                    iteration_num = int(file.split("-")[-1])
-                    if iteration_num >= highest_found:
-                        highest_found = iteration_num
-                        path_found = path.join(subdir, file)
-        if path_found is not None:
-            #if existing one was found, restore previous checkpoint
-            print ("restoring checkpoint ", path_found)
-            self.saver.restore(self.session, path_found)
-        else:
-            print("no checkpoint found named " + self.checkpoint_name + " in " + self.checkpoint_dir)
-        self.checkpoint_num = highest_found
-
-
     def _buildGenerator(self, fcSize, train=True):
         sqrtFc = int(sqrt(fcSize))
 
@@ -68,25 +105,22 @@ class NeuralNet(object):
         gen_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_combined = tf.concat(1, [gen_input_age, gen_input_gender, gen_input_noise])
-        gen_fully_connected1, var_dict = create_fully_connected_layer(gen_input_combined, fcSize,
-                                                                      self.noise_size + 2,
-                                                                      self.dropout, trainable=train, name_prefix="gen_fc")
+        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, fcSize,
+                                                                 self.noise_size + 2,
+                                                                 self.dropout, trainable=train, name_prefix="gen_fc")
         gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, sqrtFc, sqrtFc, 1])
         # now [1000,8,8,1]
-        gen_unpool1 = create_unpool_layer(gen_squared_fc1)
+        gen_unpool1 = self.create_unpool_layer(gen_squared_fc1)
         # now [1000,16,16,1]
-        gen_unconv1, var_dict = create_deconv_layer(gen_unpool1, 5, 1, trainable=train, name_prefix="gen_unconv1",
-                                                    var_dict=var_dict)
+        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 5, 1, trainable=train, name_prefix="gen_unconv1")
         # now [1000,16,16,5]
-        gen_unpool2 = create_unpool_layer(gen_unconv1)
+        gen_unpool2 = self.create_unpool_layer(gen_unconv1)
         # now [1000,32,32,5]
-        gen_unconv2, var_dict = create_deconv_layer(gen_unpool2, 5, 5, trainable=train, name_prefix="gen_unconv2",
-                                                    var_dict=var_dict)
+        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 5, 5, trainable=train, name_prefix="gen_unconv2")
         # now [1000,32,32,5]
-        gen_unpool3 = create_unpool_layer(gen_unconv2)
+        gen_unpool3 = self.create_unpool_layer(gen_unconv2)
         # now [1000,64,64,5]
-        gen_unconv3, var_dict = create_deconv_layer(gen_unpool3, 3, 5, trainable=train, name_prefix="gen_unconv3",
-                                                    var_dict=var_dict)
+        gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 5, trainable=train, name_prefix="gen_unconv3")
         # now [1000,64,64,5]
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])
@@ -97,7 +131,6 @@ class NeuralNet(object):
         self.gen_input_noise = gen_input_noise
         self.gen_input_age = gen_input_age
         self.gen_input_gender = gen_input_gender
-        self.vardict = var_dict
 
     def _buildDiscriminator(self, conv1Size, conv2Size, fcSize, train=True):
         num_pixels = self.image_size * self.image_size * 3
@@ -113,26 +146,22 @@ class NeuralNet(object):
         # [2000, 12288]
         dis_reshaped_inputs = tf.reshape(dis_combined_inputs, [self.batch_size * 2, self.image_size, self.image_size, 3])
         # [2000, 64, 64, 3]
-        dis_conv1, var_dict = create_conv_layer(dis_reshaped_inputs, conv1Size, 3, trainable=train,
-                                                name_prefix="dis_conv1", var_dict=self.vardict)
+        dis_conv1 = self.create_conv_layer(dis_reshaped_inputs, conv1Size, 3, trainable=train, name_prefix="dis_conv1")
         # [2000, 64, 64, 32]
-        dis_pool1 = create_max_pool_layer(dis_conv1)
+        dis_pool1 = self.create_max_pool_layer(dis_conv1)
         # [2000, 32, 32, 32]
-        dis_conv2, var_dict = create_conv_layer(dis_pool1, conv2Size, conv1Size, trainable=train,
-                                                name_prefix="dis_conv2", var_dict=var_dict)
+        dis_conv2 = self.create_conv_layer(dis_pool1, conv2Size, conv1Size, trainable=train, name_prefix="dis_conv2")
         # [2000, 32, 32, 64]
-        dis_pool2 = create_max_pool_layer(dis_conv2)
+        dis_pool2 = self.create_max_pool_layer(dis_conv2)
         # [2000, 16, 16, 64]
         dis_pool2_flattened = tf.reshape(dis_pool2, [self.batch_size*2, -1])
         # [2000, 16384]
-        dis_fully_connected1, var_dict = create_fully_connected_layer(dis_pool2_flattened, fcSize,
+        dis_fully_connected1 = self.create_fully_connected_layer(dis_pool2_flattened, fcSize,
                                                                       16 * 16 * conv2Size, self.dropout,
                                                                       trainable=train,
-                                                                      name_prefix="dis_fc", var_dict=var_dict)
+                                                                      name_prefix="dis_fc")
         # [2000, 49]
-        dis_output_layer, var_dict = create_output_layer(dis_fully_connected1, fcSize, 3,
-                                                         trainable=train, name_prefix="dis_out",
-                                                         var_dict=var_dict)
+        dis_output_layer = self.create_output_layer(dis_fully_connected1,fcSize,3,trainable=train,name_prefix="dis_out")
         # [2000, 3]
 
         # save important nodes
@@ -140,7 +169,6 @@ class NeuralNet(object):
         self.dis_input_age = dis_input_age
         self.dis_input_gender = dis_input_gender
         self.dis_output = dis_output_layer
-        self.vardict = var_dict
         self.dis_label_truth = dis_labels_truth
         self.dis_label_age = dis_labels_age
         self.dis_label_gender = dis_labels_gender
@@ -200,6 +228,36 @@ class NeuralNet(object):
         self.gen_accuracy_truth = genTruthAccuracy
         self.gen_accuracy_age = genAgeAccuracy
         self.gen_accuracy_sex = genSexAccuracy
+
+    """
+    Public Functions (Interface)
+    """
+
+    def saveCheckpoint(self, runsSinceLast):
+        self.checkpoint_num = self.checkpoint_num + runsSinceLast
+        self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
+        print(self.checkpoint_name + " " + str(self.checkpoint_num) + " saved")
+
+
+    def restoreNewestCheckpoint(self):
+        if not path.exists(self.checkpoint_dir):
+            mkdir(self.checkpoint_dir)
+        highest_found = 0
+        path_found = None
+        for subdir, dirs, files in walk(self.checkpoint_dir):
+            for file in files:
+                if self.checkpoint_name in file and ".meta" not in file and ".txt" not in file:
+                    iteration_num = int(file.split("-")[-1])
+                    if iteration_num >= highest_found:
+                        highest_found = iteration_num
+                        path_found = path.join(subdir, file)
+        if path_found is not None:
+            #if existing one was found, restore previous checkpoint
+            print ("restoring checkpoint ", path_found)
+            self.saver.restore(self.session, path_found)
+        else:
+            print("no checkpoint found named " + self.checkpoint_name + " in " + self.checkpoint_dir)
+        self.checkpoint_num = highest_found
 
 
     def train(self, truthImages, truthGenders, truthAges, print_results):

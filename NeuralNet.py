@@ -75,7 +75,7 @@ class NeuralNet(object):
     """
     Initialization Helpers
     """
-    def __init__(self, trainingType, batch_size=1000, chkptDir="./checkpoints", chkptName="FaceGen.ckpt",image_size=64, noise_size=20, age_range=[10, 100], learningRate=1e-4):
+    def __init__(self, trainingType, batch_size=1000, chkptDir="./checkpoints", chkptName="FaceGen.ckpt",image_size=64, noise_size=1000, age_range=[10, 100], learningRate=1e-4):
         self.vardict = {}
         self.trainingType = trainingType
         self.age_range = age_range
@@ -285,8 +285,8 @@ class NeuralNet(object):
                      self.dis_input_age: truthAges, self.dis_input_image: truthImages}
         return feed_dict, ageVec, genderVec
 
-    def train(self, truthImages, truthGenders, truthAges):
-        feed_dict,_,_ = self._createFeedDict(truthImages, truthGenders, truthAges, dropout=0.5)
+    def train(self, truthImages, truthGenders, truthAges, dropoutVal=0.5):
+        feed_dict,_,_ = self._createFeedDict(truthImages, truthGenders, truthAges, dropout=dropoutVal)
         if self.trainingType == NetworkType.Discriminator:
             _, cost =self.session.run((self.dis_train, self.dis_cost_total), feed_dict=feed_dict)
         else:

@@ -15,11 +15,12 @@ def trainNetwork(network, lastCost, saveInterval=500, printInterval=100, costRed
             network.printStatus(batchImage, batchSex, batchAge)
         cost = network.train(batchImage, batchSex, batchAge)
         if i % saveInterval == 0 and i != 0:
-            discriminator.saveCheckpoint(saveInterval)
+            network.saveCheckpoint(saveInterval)
         i = i + 1
         reachedGoal = cost <= lastCost * costReductionGoal
     #reached goal. Save state final time
-    discriminator.saveCheckpoint(i%saveInterval)
+    network.saveCheckpoint(i%saveInterval)
+    print("ending cost: " + str(cost))
     return cost
 
 if __name__ == "__main__":
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     image_size = 64
     numPerBin = 15
     batch_size = numPerBin * 8 * 2
-    loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size, numWorkerThreads=15, bufferMax=20, debugLogs=False)
+    loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size, numWorkerThreads=10, bufferMax=20, debugLogs=False)
     loader.start()
 
     # start training

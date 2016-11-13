@@ -245,7 +245,7 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
         if didLoop:
             prevState[i, 1, 0] = 1
         lastIdx = lastIdx + numPerBin
-    imageArr = np.zeros([numPerBin * numBins * 2]+[imageSize, imageSize, 3], dtype=int)
+    imageArr = np.zeros([numPerBin * numBins * 2]+[imageSize, imageSize, 3], dtype=np.float32)
     sexArr = np.zeros([numPerBin * numBins * 2, 1], dtype=bool)
     ageArr = np.zeros([numPerBin * numBins * 2, 1], dtype=int)
     i = 0
@@ -258,7 +258,7 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
             image = imresize(image, [imageSize, imageSize, 3])
         if len(image.shape) == 2:
             image = np.resize(image, imageSize)
-        imageArr[i,:,:] = image
+        imageArr[i,:,:] = image / 255.0
         sexArr[i] = sex
         ageArr[i] = age
         i = i + 1

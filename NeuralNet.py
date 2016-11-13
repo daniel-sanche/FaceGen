@@ -276,10 +276,11 @@ class NeuralNet(object):
     def _createFeedDict(self, truthImages, truthGenders, truthAges, dropout=0.5):
         batch_size = self.batch_size
         noise_batch = np.random.random_sample((batch_size, self.noise_size))
-        ageVec = (
-        np.linspace(start=self.age_range[0], stop=self.age_range[1], num=batch_size) + np.random.sample(batch_size))
-        ageVec = ageVec.reshape([batch_size, 1])
-        genderVec = np.tile(np.array([0, 1], dtype=bool), int(batch_size / 2)).reshape([batch_size, 1])
+        ageVec = (np.linspace(start=self.age_range[0], stop=self.age_range[1],
+                              num=batch_size) + np.random.sample(batch_size))
+        ageVec = ageVec.reshape([batch_size, 1]) / self.age_range[1]
+        ageVec = np.clip(ageVec, 0, 1)
+        genderVec = np.tile(np.array([0, 1], dtype=np.float64), int(batch_size / 2)).reshape([batch_size, 1])
         feed_dict = {self.gen_input_noise: noise_batch, self.gen_input_age: ageVec,
                      self.gen_input_gender: genderVec, self.dropout: dropout, self.dis_input_gender: truthGenders,
                      self.dis_input_age: truthAges, self.dis_input_image: truthImages}

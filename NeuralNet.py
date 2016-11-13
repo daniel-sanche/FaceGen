@@ -25,7 +25,7 @@ class NeuralNet(object):
     def create_max_pool_layer(self, prev_layer):
         return tf.nn.max_pool(prev_layer, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-    def create_fully_connected_layer(self,prev_layer, new_size, prev_size, dropout_prob, trainable=True, name_prefix="fc"):
+    def create_fully_connected_layer(self, prev_layer, new_size, prev_size, dropout_prob, trainable=True, name_prefix="fc"):
         W, b = self.create_variables([prev_size, new_size], [new_size], name_prefix=name_prefix,trainable=trainable)
         new_layer = tf.nn.relu(tf.matmul(prev_layer, W) + b)
         return tf.nn.dropout(new_layer, dropout_prob)
@@ -53,24 +53,9 @@ class NeuralNet(object):
         self.vardict[b_name] = b
         return W, b
 
-    def create_unpool_layer(self, prev_layer):
-        shape_list = prev_layer.get_shape().as_list()
-        channel_size = shape_list[-1]
-        x_size = shape_list[-3]
-        y_size = shape_list[-2]
-        batch_size = shape_list[0]
-        batch_layers = channel_size * batch_size
-        spacers = tf.zeros([1, (y_size * x_size * 3) * batch_layers])
-        val_indices = np.array([x for x in range(0, x_size * y_size * 4 * batch_layers) if
-                                x % 2 == 0 and int(x // (x_size * 2)) % 2 == 0]).reshape(shape_list)
-        space_indices = np.array([x for x in range(0, x_size * y_size * 4 * batch_layers) if
-                                  x % 2 != 0 or int(x // (x_size * 2)) % 2 != 0]).reshape([1, -1])
-        stitched = tf.dynamic_stitch([val_indices, space_indices], [prev_layer, spacers])
-        new_size = shape_list
-        new_size[-3] = x_size * 2
-        new_size[-2] = y_size * 2
-        reshaped_stitched = tf.reshape(stitched, new_size)
-        return reshaped_stitched
+    def create_upsample_layer(self, prev_layer, new_size):
+        resized = tf.image.resize_images(prev_layer, new_size, new_size)
+        return resized
 
     """
     Initialization Helpers
@@ -85,7 +70,7 @@ class NeuralNet(object):
 
         self.dropout =  tf.placeholder(tf.float32)
         trainGen = (trainingType==NetworkType.Generator)
-        self._buildGenerator(fcSize=64, train=trainGen)
+        self._buildGenerator(firstImageSize=8, train=trainGen)
         self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49, train=(not trainGen))
         self._buildCostFunctions(learningRate=learningRate)
 
@@ -100,30 +85,29 @@ class NeuralNet(object):
         pd.set_option('display.float_format', lambda x: '%.4f' % x)
         pd.set_option('expand_frame_repr', False)
 
-    def _buildGenerator(self, fcSize, train=True):
-        sqrtFc = int(sqrt(fcSize))
+    def _buildGenerator(self, firstImageSize=8, train=True):
 
         # build the generator network
         gen_input_noise = tf.placeholder(tf.float32, shape=[self.batch_size, self.noise_size])
         gen_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_combined = tf.concat(1, [gen_input_age, gen_input_gender, gen_input_noise])
-        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, fcSize,
+        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, firstImageSize*firstImageSize*3,
                                                                  self.noise_size + 2,
                                                                  self.dropout, trainable=train, name_prefix="gen_fc")
-        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, sqrtFc, sqrtFc, 1])
+        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 3])
         # now [1000,8,8,1]
-        gen_unpool1 = self.create_unpool_layer(gen_squared_fc1)
+        gen_unpool1 = self.create_upsample_layer(gen_squared_fc1, 16)
         # now [1000,16,16,1]
-        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 5, 1, trainable=train, name_prefix="gen_unconv1")
+        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 6, 3, trainable=train, name_prefix="gen_unconv1")
         # now [1000,16,16,5]
-        gen_unpool2 = self.create_unpool_layer(gen_unconv1)
+        gen_unpool2 = self.create_upsample_layer(gen_unconv1, 32)
         # now [1000,32,32,5]
-        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 5, 5, trainable=train, name_prefix="gen_unconv2")
+        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 6, 6, trainable=train, name_prefix="gen_unconv2")
         # now [1000,32,32,5]
-        gen_unpool3 = self.create_unpool_layer(gen_unconv2)
+        gen_unpool3 = self.create_upsample_layer(gen_unconv2, 64)
         # now [1000,64,64,5]
-        gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 5, trainable=train, name_prefix="gen_unconv3")
+        gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 6, trainable=train, name_prefix="gen_unconv3")
         # now [1000,64,64,5]
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])

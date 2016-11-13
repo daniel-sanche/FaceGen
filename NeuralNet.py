@@ -111,7 +111,7 @@ class NeuralNet(object):
         # [1000,64,64,3]
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])
-        # now [1000,64,64,3]
+        # [1000,12288]
 
         #save important nodes
         self.gen_output = gen_output_layer

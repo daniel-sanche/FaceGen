@@ -2,12 +2,9 @@ from NeuralNet import  NeuralNet, NetworkType
 from DataLoader import  LoadFilesData, DataLoader
 import numpy as np
 
-def trainNetwork(network, lastCost, saveInterval=500, printInterval=100, costReductionGoal=0.9, trainDropout=0.5):
+def trainNetwork(network, saveInterval=500, printInterval=100, goalAcc=0.95, trainDropout=0.5):
     reachedGoal = False
     i = 0
-    cost = lastCost
-    goalCost = lastCost * costReductionGoal
-    print ("Goal Cost: " + str(goalCost))
     while not reachedGoal:
         batchDict = loader.getData()
         batchImage = batchDict["image"]
@@ -15,13 +12,13 @@ def trainNetwork(network, lastCost, saveInterval=500, printInterval=100, costRed
         batchSex = batchDict["sex"]
         batchImage = batchImage.reshape([batchImage.shape[0], -1])
         if i % printInterval == 0:
-            cost = network.printStatus(batchImage, batchSex, batchAge)
-            reachedGoal = cost <= goalCost
+            acc = network.printStatus(batchImage, batchSex, batchAge)
+            reachedGoal = acc >= goalAcc
         network.train(batchImage, batchSex, batchAge, dropoutVal=trainDropout)
         if (i % saveInterval == 0 and i != 0) or reachedGoal:
             network.saveCheckpoint(saveInterval)
         i = i + 1
-    return cost
+    return acc
 
 if __name__ == "__main__":
     # initialize the data loader
@@ -44,14 +41,11 @@ if __name__ == "__main__":
     generator = NeuralNet(trainingType=NetworkType.Generator, batch_size=batch_size, image_size=image_size,
             noise_size=noise_size)
 
-    disCurrentCost = float("inf")
-    genCurrentCost = float("inf")
-
     while True:
         print("__GENERATOR__")
-        genCurrentCost = trainNetwork(generator, genCurrentCost, trainDropout=0.5)
+        genCurrentCost = trainNetwork(generator, trainDropout=0.5)
         print("__DISCRIMINATOR__")
         discriminator.restoreNewestCheckpoint()
-        disCurrentCost = trainNetwork(discriminator, disCurrentCost, trainDropout=0.7)
+        disCurrentCost = trainNetwork(discriminator, trainDropout=0.5)
         generator.restoreNewestCheckpoint()
 

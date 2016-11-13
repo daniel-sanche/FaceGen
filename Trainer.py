@@ -42,10 +42,10 @@ if __name__ == "__main__":
             noise_size=noise_size)
 
     while True:
-        print("__GENERATOR__")
-        genCurrentCost = trainNetwork(generator, trainDropout=0.5)
         print("__DISCRIMINATOR__")
-        discriminator.restoreNewestCheckpoint()
-        disCurrentCost = trainNetwork(discriminator, trainDropout=0.5)
+        trainNetwork(discriminator, trainDropout=0.5)
+        print("__GENERATOR__")
         generator.restoreNewestCheckpoint()
+        trainNetwork(generator, trainDropout=0.5)
+        discriminator.restoreNewestCheckpoint()
 

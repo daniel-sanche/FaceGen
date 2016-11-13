@@ -54,7 +54,7 @@ class NeuralNet(object):
         return W, b
 
     def create_upsample_layer(self, prev_layer, new_size):
-        resized = tf.image.resize_images(prev_layer, new_size, new_size)
+        resized = tf.image.resize_images(prev_layer, new_size, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         return resized
 
     """
@@ -96,19 +96,19 @@ class NeuralNet(object):
                                                                  self.noise_size + 2,
                                                                  self.dropout, trainable=train, name_prefix="gen_fc")
         gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 3])
-        # now [1000,8,8,1]
+        # s[1000,8,8,3]
         gen_unpool1 = self.create_upsample_layer(gen_squared_fc1, 16)
-        # now [1000,16,16,1]
+        # [1000,16,16,3]
         gen_unconv1 = self.create_deconv_layer(gen_unpool1, 6, 3, trainable=train, name_prefix="gen_unconv1")
-        # now [1000,16,16,5]
+        # [1000,16,16,6]
         gen_unpool2 = self.create_upsample_layer(gen_unconv1, 32)
-        # now [1000,32,32,5]
+        # [1000,32,32,6]
         gen_unconv2 = self.create_deconv_layer(gen_unpool2, 6, 6, trainable=train, name_prefix="gen_unconv2")
-        # now [1000,32,32,5]
+        # [1000,32,32,6]
         gen_unpool3 = self.create_upsample_layer(gen_unconv2, 64)
-        # now [1000,64,64,5]
+        # [1000,64,64,6]
         gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 6, trainable=train, name_prefix="gen_unconv3")
-        # now [1000,64,64,5]
+        # [1000,64,64,3]
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])
         # now [1000,64,64,3]

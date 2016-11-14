@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     while True:
         print("__DISCRIMINATOR__")
-        trainNetwork(discriminator, trainDropout=0.5, goalAcc=0.6, printInterval=50)
+        trainNetwork(discriminator, trainDropout=0.5, goalAcc=0.6)
         print("__GENERATOR__")
         generator.restoreNewestCheckpoint()
         trainNetwork(generator, trainDropout=0.5)

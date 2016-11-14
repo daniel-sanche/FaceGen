@@ -92,22 +92,22 @@ class NeuralNet(object):
         gen_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_combined = tf.concat(1, [gen_input_age, gen_input_gender, gen_input_noise])
-        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, firstImageSize*firstImageSize*3,
+        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, firstImageSize*firstImageSize*128,
                                                                  self.noise_size + 2,
                                                                  self.dropout, trainable=train, name_prefix="gen_fc")
-        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 3])
-        # s[1000,8,8,3]
+        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 128])
+        # s[1000,8,8,64]
         gen_unpool1 = self.create_upsample_layer(gen_squared_fc1, 16)
-        # [1000,16,16,3]
-        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 6, 3, trainable=train, name_prefix="gen_unconv1")
-        # [1000,16,16,6]
+        # [1000,16,16,64]
+        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 64, 128, trainable=train, name_prefix="gen_unconv1")
+        # [1000,16,16,32]
         gen_unpool2 = self.create_upsample_layer(gen_unconv1, 32)
-        # [1000,32,32,6]
-        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 6, 6, trainable=train, name_prefix="gen_unconv2")
-        # [1000,32,32,6]
+        # [1000,32,32,32]
+        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 32, 64, trainable=train, name_prefix="gen_unconv2")
+        # [1000,32,32,32]
         gen_unpool3 = self.create_upsample_layer(gen_unconv2, 64)
-        # [1000,64,64,6]
-        gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 6, trainable=train, name_prefix="gen_unconv3")
+        # [1000,64,64,32]
+        gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 32, trainable=train, name_prefix="gen_unconv3")
         # [1000,64,64,3]
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])

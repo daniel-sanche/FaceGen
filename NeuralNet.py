@@ -54,7 +54,7 @@ class NeuralNet(object):
         return W, b
 
     def create_upsample_layer(self, prev_layer, new_size):
-        resized = tf.image.resize_images(prev_layer, new_size, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        resized = tf.image.resize_images(prev_layer, [new_size, new_size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         return resized
 
     """
@@ -161,7 +161,7 @@ class NeuralNet(object):
         self.dis_label_age = dis_labels_age
         self.dis_label_gender = dis_labels_gender
 
-    def _buildCostFunctions(self, learningRate=1e-4, ageDiffForAcc=0.1):
+    def _buildCostFunctions(self, learningRate=1e-4, ageDiffForAcc=0.1, maxDiffCostPerPixel=0.1):
         truthOutput, ageOutput, sexOutput = tf.split(1, 3, self.dis_output)
         scaledAge = tf.scalar_mul(self.age_range[1], ageOutput)
         truthDiff = tf.sub(truthOutput, self.dis_label_truth)
@@ -185,19 +185,14 @@ class NeuralNet(object):
         genTruthCost = tf.nn.l2_loss(genTruthDiff) / self.batch_size
         genAgeCost = tf.nn.l2_loss(genAgeDiff) / self.batch_size
         genSexCost = tf.nn.l2_loss(genSexDiff) / self.batch_size
-        genCombinedCost = tf.add(tf.add(genTruthCost, genAgeCost), genSexCost)
-        genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCombinedCost)
-        #calculate the trainging function to make images more different
+        #create a cost that represents how similar the images are through the batch
         genOut = self.gen_output
         genMeanImage = tf.reduce_mean(genOut, 0)
         genDiff = tf.sub(genOut, genMeanImage)
-        diffScore = tf.nn.l2_loss(genDiff) / self.batch_size
-        self.gen_diff_score = diffScore
-        if self.trainingType == NetworkType.Generator:
-            genDiffTrain = tf.train.AdamOptimizer(learningRate).minimize(tf.scalar_mul(-1, diffScore))
-            self.gen_train_diff = genDiffTrain
-        else:
-            self.gen_train_diff = tf.constant(-1)
+        diffScorePerPixel = tf.nn.l2_loss(genDiff) / (self.batch_size* self.image_size * 3)
+        genDiffCost = tf.maximum(0.0, ((maxDiffCostPerPixel-diffScorePerPixel) * 100))
+        genCombinedCost = genTruthCost + genAgeCost + genSexCost + genDiffCost
+        genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCombinedCost)
 
 
         #calculate the accuracy for all predictions
@@ -234,6 +229,7 @@ class NeuralNet(object):
         self.gen_cost_age = genAgeCost
         self.gen_cost_sex = genSexCost
         self.gen_cost_truth = genTruthCost
+        self.gen_cost_diff = genDiffCost
         self.gen_accuracy_truth = genTruthAccuracy
         self.gen_accuracy_age = genAgeAccuracy
         self.gen_accuracy_sex = genSexAccuracy
@@ -290,27 +286,27 @@ class NeuralNet(object):
         if self.trainingType == NetworkType.Discriminator:
             _, acc =self.session.run((self.dis_train, self.dis_accuracy_truth), feed_dict=feed_dict)
         else:
-            _, _, acc = self.session.run((self.gen_train, self.gen_train_diff, self.gen_accuracy_truth), feed_dict=feed_dict)
+            _, acc = self.session.run((self.gen_train, self.gen_accuracy_truth), feed_dict=feed_dict)
         return acc
 
     def printStatus(self, truthImages, truthGenders, truthAges):
         feed_dict, ageVec, genderVec = self._createFeedDict(truthImages, truthGenders, truthAges, dropout=1)
 
         if self.trainingType == NetworkType.Discriminator:
-            outputList = (self.dis_out_truth, self.dis_out_age, self.dis_out_gender, self.gen_diff_score,
-                          self.dis_cost_total, self.dis_cost_truth, self.dis_cost_age, self.dis_cost_sex,
+            outputList = (self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
+                          self.dis_cost_total, self.dis_cost_truth, self.dis_cost_age, self.dis_cost_sex,self.gen_cost_diff,
                           self.dis_accuracy_truth, self.dis_accuracy_age,self.dis_accuracy_sex)
-            outT, outA, outS, diffScore, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
-            df = pd.DataFrame(np.array([costTot,costT, costA, costS, accT, accA, accS, diffScore]).reshape(1,-1),
-                              columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Truth Acc","Age Acc","Sex Acc","Diff Score"], index=["Discriminator"])
+            outT, outA, outS, costTot, costT, costA, costS, costD, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
+            df = pd.DataFrame(np.array([costTot,costT, costA, costS, costD, accT, accA, accS]).reshape(1,-1),
+                              columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Diff Cost", "Truth Acc","Age Acc","Sex Acc"], index=["Discriminator"])
             print(df)
         else:
-            outputList = (self.gen_output, self.dis_out_truth, self.dis_out_age, self.dis_out_gender, self.gen_diff_score,
-                          self.gen_cost_total,self.gen_cost_truth, self.gen_cost_age, self.gen_cost_sex,
+            outputList = (self.gen_output, self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
+                          self.gen_cost_total,self.gen_cost_truth, self.gen_cost_age, self.gen_cost_sex,self.gen_cost_diff,
                           self.gen_accuracy_truth,self.gen_accuracy_age,self.gen_accuracy_sex)
-            outImages, outT, outA, outS, diffScore, costTot, costT, costA, costS, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
-            df = pd.DataFrame(np.array([costTot, costT, costA, costS, accT, accA, accS, diffScore]).reshape(1, -1),
-                              columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Truth Acc", "Age Acc","Sex Acc", "Diff Score"], index=["Generator"])
+            outImages, outT, outA, outS, costTot, costT, costA, costS, costD, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
+            df = pd.DataFrame(np.array([costTot, costT, costA, costS, costD, accT, accA, accS]).reshape(1, -1),
+                              columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Diff Cost", "Truth Acc", "Age Acc","Sex Acc"], index=["Generator"])
             print(df)
             outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
             visualizeImages(outImages[:50, :, :, :], numRows=5)

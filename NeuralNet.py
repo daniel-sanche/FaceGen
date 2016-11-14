@@ -173,7 +173,7 @@ class NeuralNet(object):
         disSexCost = tf.nn.l2_loss(tf.mul(sexDiff, self.dis_label_truth)) / self.batch_size
         disAgeCost = tf.nn.l2_loss(tf.mul(ageDiff, self.dis_label_truth)) / self.batch_size
         disCombinedCost = tf.add(tf.add(disSexCost, disAgeCost), disTruthCost)
-        disTrainStep = tf.train.AdamOptimizer(learningRate).minimize(disTruthCost)
+        disTrainStep = tf.train.AdamOptimizer(learningRate).minimize(disCombinedCost)
 
         #generator cost is the L2 loss of truth, gender, and age values
         #truth value is weighted, because making realistic humans should be a higher priority
@@ -185,7 +185,7 @@ class NeuralNet(object):
         genAgeCost = tf.nn.l2_loss(genAgeDiff) / self.batch_size
         genSexCost = tf.nn.l2_loss(genSexDiff) / self.batch_size
         genCombinedCost = tf.add(tf.add(genTruthCost, genAgeCost), genSexCost)
-        genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genTruthCost)
+        genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCombinedCost)
 
         #calculate the accuracy for all predictions
         sexCorrect = tf.cast(tf.equal(tf.round(self.dis_label_gender), tf.round(sexOutput)), tf.float32)
@@ -209,7 +209,7 @@ class NeuralNet(object):
         self.dis_out_gender = sexOutput
         self.dis_out_truth = truthOutput
         self.dis_train = disTrainStep
-        self.dis_cost_total = disTruthCost
+        self.dis_cost_total = disCombinedCost
         self.dis_cost_truth = disTruthCost
         self.dis_cost_age = disAgeCost
         self.dis_cost_sex = disSexCost
@@ -217,7 +217,7 @@ class NeuralNet(object):
         self.dis_accuracy_age = disAgeAccuracy
         self.dis_accuracy_sex = disSexAccuracy
         self.gen_train = genTrainStep
-        self.gen_cost_total = genTruthCost
+        self.gen_cost_total = genCombinedCost
         self.gen_cost_age = genAgeCost
         self.gen_cost_sex = genSexCost
         self.gen_cost_truth = genTruthCost

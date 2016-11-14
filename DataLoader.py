@@ -313,7 +313,9 @@ class DataLoader(object):
         for i in range(numWorkerThreads):
             threadIndex = deepcopy(indices)
             _randomizeIndices(threadIndex)
-            threadList += [threading.Thread(target=self._thread_runner, args=[threadIndex])]
+            newThread = threading.Thread(target=self._thread_runner, args=[threadIndex])
+            newThread.daemon = True
+            threadList += [newThread]
         self.threadList = threadList
         self.needsCache=False
         self.bufferMax = bufferMax

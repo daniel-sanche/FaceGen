@@ -71,7 +71,7 @@ class NeuralNet(object):
         self.dropout =  tf.placeholder(tf.float32)
         trainGen = (trainingType==NetworkType.Generator)
         self._buildGenerator(firstImageSize=8, train=trainGen)
-        self._buildDiscriminator(conv1Size=32, conv2Size=64, fcSize=49, train=(not trainGen))
+        self._buildDiscriminator(conv1Size=64, conv2Size=32, fcSize=49, train=(not trainGen))
         self._buildCostFunctions(learningRate=learningRate)
 
         sess = tf.Session()
@@ -92,18 +92,18 @@ class NeuralNet(object):
         gen_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_combined = tf.concat(1, [gen_input_age, gen_input_gender, gen_input_noise])
-        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, firstImageSize*firstImageSize*128,
+        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, firstImageSize*firstImageSize*256,
                                                                  self.noise_size + 2,
                                                                  self.dropout, trainable=train, name_prefix="gen_fc")
-        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 128])
+        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 256])
         # s[1000,8,8,64]
         gen_unpool1 = self.create_upsample_layer(gen_squared_fc1, 16)
         # [1000,16,16,64]
-        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 64, 128, trainable=train, name_prefix="gen_unconv1")
+        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 128, 256, trainable=train, name_prefix="gen_unconv1")
         # [1000,16,16,32]
         gen_unpool2 = self.create_upsample_layer(gen_unconv1, 32)
         # [1000,32,32,32]
-        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 32, 64, trainable=train, name_prefix="gen_unconv2")
+        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 32, 128, trainable=train, name_prefix="gen_unconv2")
         # [1000,32,32,32]
         gen_unpool3 = self.create_upsample_layer(gen_unconv2, 64)
         # [1000,64,64,32]
@@ -135,15 +135,15 @@ class NeuralNet(object):
         dis_reshaped_inputs = tf.reshape(dis_combined_inputs, [self.batch_size * 2, self.image_size, self.image_size, 3])
         # [2000, 64, 64, 3]
         dis_conv1 = self.create_conv_layer(dis_reshaped_inputs, conv1Size, 3, trainable=train, name_prefix="dis_conv1")
-        # [2000, 64, 64, 32]
+        # [2000, 64, 64, 64]
         dis_pool1 = self.create_max_pool_layer(dis_conv1)
-        # [2000, 32, 32, 32]
-        dis_conv2 = self.create_conv_layer(dis_pool1, conv2Size, conv1Size, trainable=train, name_prefix="dis_conv2")
         # [2000, 32, 32, 64]
+        dis_conv2 = self.create_conv_layer(dis_pool1, conv2Size, conv1Size, trainable=train, name_prefix="dis_conv2")
+        # [2000, 32, 32, 32]
         dis_pool2 = self.create_max_pool_layer(dis_conv2)
-        # [2000, 16, 16, 64]
+        # [2000, 16, 16, 32]
         dis_pool2_flattened = tf.reshape(dis_pool2, [self.batch_size*2, -1])
-        # [2000, 16384]
+        # [2000, 8192]
         dis_fully_connected1 = self.create_fully_connected_layer(dis_pool2_flattened, fcSize,
                                                                       16 * 16 * conv2Size, self.dropout,
                                                                       trainable=train,
@@ -271,8 +271,6 @@ class NeuralNet(object):
     def _createFeedDict(self, truthImages, truthGenders, truthAges, dropout=0.5):
         batch_size = self.batch_size
         noise_batch = np.random.random_sample((batch_size, self.noise_size))
-        noise_batch = noise_batch / noise_batch.sum(axis=1).reshape([batch_size, 1])
-        noise_batch = noise_batch * self.noise_size
         ageVec = (np.linspace(start=self.age_range[0], stop=self.age_range[1],
                               num=batch_size) + np.random.sample(batch_size))
         ageVec = ageVec.reshape([batch_size, 1]) / self.age_range[1]

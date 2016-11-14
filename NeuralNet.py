@@ -260,6 +260,7 @@ class NeuralNet(object):
     def _createFeedDict(self, truthImages, truthGenders, truthAges, dropout=0.5):
         batch_size = self.batch_size
         noise_batch = np.random.random_sample((batch_size, self.noise_size))
+        noise_batch = noise_batch / noise_batch.sum(axis=1).reshape([batch_size, 1])
         ageVec = (np.linspace(start=self.age_range[0], stop=self.age_range[1],
                               num=batch_size) + np.random.sample(batch_size))
         ageVec = ageVec.reshape([batch_size, 1]) / self.age_range[1]

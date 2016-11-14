@@ -43,7 +43,7 @@ class NeuralNet(object):
         new_layer = tf.nn.conv2d_transpose(prev_layer, W, new_shape, strides=[1, 1, 1, 1], padding='SAME')
         return tf.nn.relu(new_layer + b)
 
-    def create_variables(self, w_size, b_size, name_prefix="untitled", trainable=True, w_stddev=0.1, b_val=0.1):
+    def create_variables(self, w_size, b_size, name_prefix="untitled", trainable=True, w_stddev=0.02, b_val=0.1):
         W_name = name_prefix + "-W"
         b_name = name_prefix + "-b"
         W = tf.Variable(tf.truncated_normal(w_size, stddev=w_stddev),
@@ -54,7 +54,7 @@ class NeuralNet(object):
         return W, b
 
     def create_upsample_layer(self, prev_layer, new_size):
-        resized = tf.image.resize_images(prev_layer, [new_size, new_size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        resized = tf.image.resize_images(prev_layer, new_size, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         return resized
 
     """

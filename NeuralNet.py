@@ -112,9 +112,10 @@ class NeuralNet(object):
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])
         # [1000,12288]
+        gen_output_thresholded = tf.minimum(1.0, tf.maximum(0.0, gen_output_layer))
 
         #save important nodes
-        self.gen_output = gen_output_layer
+        self.gen_output = gen_output_thresholded
         self.gen_input_noise = gen_input_noise
         self.gen_input_age = gen_input_age
         self.gen_input_gender = gen_input_gender
@@ -193,7 +194,7 @@ class NeuralNet(object):
         diffScore = tf.nn.l2_loss(genDiff) / self.batch_size
         self.gen_diff_score = diffScore
         if self.trainingType == NetworkType.Generator:
-            genDiffTrain = tf.train.AdamOptimizer(1e-1).minimize(tf.scalar_mul(-1, diffScore))
+            genDiffTrain = tf.train.AdamOptimizer(learningRate).minimize(tf.scalar_mul(-1, diffScore))
             self.gen_train_diff = genDiffTrain
         else:
             self.gen_train_diff = tf.constant(-1)

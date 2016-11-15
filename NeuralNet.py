@@ -43,7 +43,7 @@ class NeuralNet(object):
         new_layer = tf.nn.conv2d_transpose(prev_layer, W, new_shape, strides=[1, 1, 1, 1], padding='SAME')
         return tf.nn.relu(new_layer + b)
 
-    def create_variables(self, w_size, b_size, name_prefix="untitled", trainable=True, w_stddev=0.2, b_val=0.1):
+    def create_variables(self, w_size, b_size, name_prefix="untitled", trainable=True, w_stddev=0.02, b_val=0.1):
         W_name = name_prefix + "-W"
         b_name = name_prefix + "-b"
         W = tf.Variable(tf.truncated_normal(w_size, stddev=w_stddev),
@@ -92,22 +92,22 @@ class NeuralNet(object):
         gen_input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_gender = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         gen_input_combined = tf.concat(1, [gen_input_age, gen_input_gender, gen_input_noise])
-        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, firstImageSize*firstImageSize*256,
+        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_combined, firstImageSize*firstImageSize*64,
                                                                  self.noise_size + 2,
                                                                  self.dropout, trainable=train, name_prefix="gen_fc")
-        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 256])
+        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 64])
         # s[1000,8,8,64]
         gen_unpool1 = self.create_upsample_layer(gen_squared_fc1, 16)
         # [1000,16,16,64]
-        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 128, 256, trainable=train, name_prefix="gen_unconv1")
+        gen_unconv1 = self.create_deconv_layer(gen_unpool1, 32, 64, trainable=train, name_prefix="gen_unconv1")
         # [1000,16,16,32]
         gen_unpool2 = self.create_upsample_layer(gen_unconv1, 32)
         # [1000,32,32,32]
-        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 32, 128, trainable=train, name_prefix="gen_unconv2")
-        # [1000,32,32,32]
+        gen_unconv2 = self.create_deconv_layer(gen_unpool2, 16, 32, trainable=train, name_prefix="gen_unconv2")
+        # [1000,32,32,16]
         gen_unpool3 = self.create_upsample_layer(gen_unconv2, 64)
-        # [1000,64,64,32]
-        gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 32, trainable=train, name_prefix="gen_unconv3")
+        # [1000,64,64,16]
+        gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 16, trainable=train, name_prefix="gen_unconv3")
         # [1000,64,64,3]
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])
@@ -161,7 +161,7 @@ class NeuralNet(object):
         self.dis_label_age = dis_labels_age
         self.dis_label_gender = dis_labels_gender
 
-    def _buildCostFunctions(self, learningRate=1e-4, ageDiffForAcc=0.1, goalDiffScore=100.0):
+    def _buildCostFunctions(self, learningRate=1e-4, ageDiffForAcc=0.1, goalDiffScore=60.0):
         truthOutput, ageOutput, sexOutput = tf.split(1, 3, self.dis_output)
         scaledAge = tf.scalar_mul(self.age_range[1], ageOutput)
         truthDiff = tf.sub(truthOutput, self.dis_label_truth)
@@ -192,7 +192,7 @@ class NeuralNet(object):
         genDiff = tf.abs(shrunk - meanImage)
         diffScore = (tf.reduce_sum(genDiff) / (self.batch_size))
         genDiffCost = tf.maximum(0.0, ((goalDiffScore - diffScore) / goalDiffScore))
-        genCombinedCost = genTruthCost + genAgeCost + genSexCost + genDiffCost
+        genCombinedCost = genTruthCost + genAgeCost + genSexCost
         genTrainStep = tf.train.AdamOptimizer(learningRate).minimize(genCombinedCost)
 
 
@@ -206,6 +206,7 @@ class NeuralNet(object):
         disSexAccuracy =  tf.scalar_mul(2, tf.reduce_mean(tf.cast(disSexCorrect, tf.float32)))
         disAgeCorrect = tf.mul(ageCorrect, self.dis_label_truth)
         disAgeAccuracy = tf.scalar_mul(2, tf.reduce_mean(tf.cast(disAgeCorrect, tf.float32)))
+        disAccCombined = (disAgeAccuracy + disSexAccuracy + disTruthAccuracy) / 3.0
 
         fooledTruthArr = tf.equal(tf.mul(tf.round(truthOutput), fakeLabels), tf.ones_like(truthOutput))
         genTruthAccuracy = tf.scalar_mul(2, tf.reduce_mean(tf.cast(fooledTruthArr, tf.float32)))
@@ -213,6 +214,7 @@ class NeuralNet(object):
         genAgeAccuracy = tf.scalar_mul(2, tf.reduce_mean(tf.cast(genAgeCorrect, tf.float32)))
         genSexCorrect = tf.mul(sexCorrect, fakeLabels)
         genSexAccuracy = tf.scalar_mul(2, tf.reduce_mean(tf.cast(genSexCorrect, tf.float32)))
+        genAccCombined = (genAgeAccuracy + genSexAccuracy + genTruthAccuracy) / 3.0
 
         self.dis_out_age = scaledAge
         self.dis_out_gender = sexOutput
@@ -225,6 +227,7 @@ class NeuralNet(object):
         self.dis_accuracy_truth = disTruthAccuracy
         self.dis_accuracy_age = disAgeAccuracy
         self.dis_accuracy_sex = disSexAccuracy
+        self.dis_accuracy_total = disAccCombined
         self.gen_train = genTrainStep
         self.gen_cost_total = genCombinedCost
         self.gen_cost_age = genAgeCost
@@ -235,6 +238,8 @@ class NeuralNet(object):
         self.gen_accuracy_truth = genTruthAccuracy
         self.gen_accuracy_age = genAgeAccuracy
         self.gen_accuracy_sex = genSexAccuracy
+        self.gen_accuracy_total = genAccCombined
+
 
     """
     Public Functions (Interface)
@@ -284,9 +289,9 @@ class NeuralNet(object):
     def train(self, truthImages, truthGenders, truthAges, dropoutVal=0.5):
         feed_dict,_,_ = self._createFeedDict(truthImages, truthGenders, truthAges, dropout=dropoutVal)
         if self.trainingType == NetworkType.Discriminator:
-            _, acc =self.session.run((self.dis_train, self.dis_accuracy_truth), feed_dict=feed_dict)
+            _, acc =self.session.run((self.dis_train, self.dis_accuracy_total), feed_dict=feed_dict)
         else:
-            _, acc = self.session.run((self.gen_train, self.gen_accuracy_truth), feed_dict=feed_dict)
+            _, acc = self.session.run((self.gen_train, self.gen_accuracy_total), feed_dict=feed_dict)
         return acc
 
     def printStatus(self, truthImages, truthGenders, truthAges):
@@ -295,18 +300,18 @@ class NeuralNet(object):
         if self.trainingType == NetworkType.Discriminator:
             outputList = (self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
                           self.dis_cost_total, self.dis_cost_truth, self.dis_cost_age, self.dis_cost_sex,self.gen_cost_diff,self.gen_diff_score,
-                          self.dis_accuracy_truth, self.dis_accuracy_age,self.dis_accuracy_sex)
-            outT, outA, outS, costTot, costT, costA, costS, costD, dScore,accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
-            df = pd.DataFrame(np.array([costTot,costT, costA, costS, costD,dScore, accT, accA, accS]).reshape(1,-1),
-                              columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Diff Cost", "Diff Score","Truth Acc","Age Acc","Sex Acc"], index=["Discriminator"])
+                          self.dis_accuracy_truth, self.dis_accuracy_age,self.dis_accuracy_sex, self.dis_accuracy_total)
+            outT, outA, outS, costTot, costT, costA, costS, costD, dScore,accT,accA, accS, accTot = self.session.run(outputList, feed_dict=feed_dict)
+            df = pd.DataFrame(np.array([costTot,costT, costA, costS, costD,dScore, accT, accA, accS, accTot]).reshape(1,-1),
+                              columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Diff Cost", "Diff Score","Truth Acc","Age Acc","Sex Acc", "Total Acc"], index=["Discriminator"])
             print(df)
         else:
             outputList = (self.gen_output, self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
                           self.gen_cost_total,self.gen_cost_truth, self.gen_cost_age, self.gen_cost_sex,self.gen_cost_diff,self.gen_diff_score,
-                          self.gen_accuracy_truth,self.gen_accuracy_age,self.gen_accuracy_sex)
-            outImages, outT, outA, outS, costTot, costT, costA, costS, costD,dScore, accT,accA, accS = self.session.run(outputList, feed_dict=feed_dict)
-            df = pd.DataFrame(np.array([costTot, costT, costA, costS, costD, dScore, accT, accA, accS]).reshape(1, -1),
-                              columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Diff Cost", "Diff Score", "Truth Acc", "Age Acc","Sex Acc"], index=["Generator"])
+                          self.gen_accuracy_truth,self.gen_accuracy_age,self.gen_accuracy_sex, self.gen_accuracy_total)
+            outImages, outT, outA, outS, costTot, costT, costA, costS, costD,dScore, accT,accA, accS, accTot = self.session.run(outputList, feed_dict=feed_dict)
+            df = pd.DataFrame(np.array([costTot, costT, costA, costS, costD, dScore, accT, accA, accS, accTot]).reshape(1, -1),
+                              columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Diff Cost", "Diff Score", "Truth Acc", "Age Acc","Sex Acc", "Total Acc"], index=["Generator"])
             print(df)
             outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
             visualizeImages(outImages[:50, :, :, :], numRows=5)
@@ -314,7 +319,8 @@ class NeuralNet(object):
                       np.concatenate([truthAges, ageVec]),
                       np.concatenate([truthGenders, genderVec]),
                       outT, outA, outS)
-        return accT
+        visualizeImages(truthImages.reshape([self.batch_size, self.image_size, self.image_size, 3]), numRows=5, fileName="last_batch.png")
+        return accTot
 
 
 if __name__ == "__main__":

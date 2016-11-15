@@ -314,7 +314,7 @@ class NeuralNet(object):
                               columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Diff Cost", "Diff Score", "Truth Acc", "Age Acc","Sex Acc", "Total Acc"], index=["Generator"])
             print(df)
             outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
-            visualizeImages(outImages[:50, :, :, :], numRows=5)
+            visualizeImages(outImages, numRows=10)
         csvFromOutput(np.concatenate([np.ones([self.batch_size, 1]), np.zeros([self.batch_size, 1])]),
                       np.concatenate([truthAges, ageVec]),
                       np.concatenate([truthGenders, genderVec]),

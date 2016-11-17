@@ -309,10 +309,10 @@ class NeuralNet(object):
         feed_dict, ageVec, genderVec = self._createFeedDict(truthImages, truthGenders, truthAges, dropout=1)
 
         if self.trainingType == NetworkType.Discriminator:
-            outputList = (self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
+            outputList = (self.gen_output, self.dis_out_truth, self.dis_out_age, self.dis_out_gender,
                           self.dis_cost_total, self.dis_cost_truth, self.dis_cost_age, self.dis_cost_sex,
                           self.dis_accuracy_truth, self.dis_accuracy_age,self.dis_accuracy_sex, self.dis_accuracy_total)
-            outT, outA, outS, costTot, costT, costA, costS, accT,accA, accS, accTot = self.session.run(outputList, feed_dict=feed_dict)
+            outImages, outT, outA, outS, costTot, costT, costA, costS, accT,accA, accS, accTot = self.session.run(outputList, feed_dict=feed_dict)
             df = pd.DataFrame(np.array([costTot,costT, costA, costS, accT, accA, accS, accTot]).reshape(1,-1),
                               columns=["Total Cost","Truth Cost","Age Cost","Sex Cost","Truth Acc","Age Acc","Sex Acc", "Total Acc"], index=["Discriminator"])
             print(df)
@@ -324,14 +324,14 @@ class NeuralNet(object):
             df = pd.DataFrame(np.array([costTot, costT, costA, costS, accT, accA, accS, accTot]).reshape(1, -1),
                               columns=["Total Cost", "Truth Cost", "Age Cost", "Sex Cost", "Truth Acc", "Age Acc","Sex Acc", "Total Acc"], index=["Generator"])
             print(df)
-            outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
-            visualizeImages(outImages, numRows=10)
+        outImages = np.reshape(outImages, [self.batch_size, self.image_size, self.image_size, 3])
+        visualizeImages(outImages, numRows=10)
         csvFromOutput(np.concatenate([np.ones([self.batch_size, 1]), np.zeros([self.batch_size, 1])]),
                       np.concatenate([truthAges, ageVec]),
                       np.concatenate([truthGenders, genderVec]),
                       outT, outA, outS)
         visualizeImages(truthImages.reshape([self.batch_size, self.image_size, self.image_size, 3]), numRows=5, fileName="last_batch.png")
-        return accT
+        return accTot
 
 
 if __name__ == "__main__":

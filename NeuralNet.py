@@ -16,11 +16,11 @@ class NeuralNet(object):
     """
     Neural Net Layers
     """
-    def create_conv_layer(self, prev_layer, new_depth, prev_depth, trainable=True, name_prefix="conv", patch_size=3):
+    def create_conv_layer(self, prev_layer, new_depth, prev_depth, dropout_prob, trainable=True, name_prefix="conv", patch_size=3):
         W, b = self.create_variables([patch_size, patch_size, prev_depth, new_depth], [new_depth],
                                           name_prefix=name_prefix, trainable=trainable)
         new_layer = tf.nn.conv2d(prev_layer, W, strides=[1, 1, 1, 1], padding='SAME')
-        return tf.nn.relu(new_layer + b)
+        return tf.nn.dropout(tf.nn.relu(new_layer + b), dropout_prob)
 
     def create_max_pool_layer(self, prev_layer):
         return tf.nn.max_pool(prev_layer, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
@@ -152,11 +152,11 @@ class NeuralNet(object):
 
         dis_reshaped_inputs = tf.reshape(dis_combined_inputs, [self.batch_size * 2, self.image_size, self.image_size, 3])
         # [2000, 64, 64, 3]
-        dis_conv1 = self.create_conv_layer(dis_reshaped_inputs, conv1Size, 3, trainable=train, name_prefix="dis_conv1")
+        dis_conv1 = self.create_conv_layer(dis_reshaped_inputs, conv1Size, 3, dropout_prob=self.dropout, trainable=train, name_prefix="dis_conv1")
         # [2000, 64, 64, 64]
         dis_pool1 = self.create_max_pool_layer(dis_conv1)
         # [2000, 32, 32, 64]
-        dis_conv2 = self.create_conv_layer(dis_pool1, conv2Size, conv1Size, trainable=train, name_prefix="dis_conv2")
+        dis_conv2 = self.create_conv_layer(dis_pool1, conv2Size, conv1Size, dropout_prob=self.dropout, trainable=train, name_prefix="dis_conv2")
         # [2000, 32, 32, 32]
         dis_pool2 = self.create_max_pool_layer(dis_conv2)
         # [2000, 16, 16, 32]

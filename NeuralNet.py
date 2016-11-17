@@ -126,10 +126,9 @@ class NeuralNet(object):
         totalPixels = self.image_size * self.image_size * 3
         gen_output_layer = tf.reshape(gen_unconv3_norm, [self.batch_size, totalPixels])
         # [1000,12288]
-        gen_output_thresholded = tf.minimum(1.0, tf.maximum(0.0, gen_output_layer))
 
         #save important nodes
-        self.gen_output = gen_output_thresholded
+        self.gen_output = gen_output_layer
         self.gen_input_noise = gen_input_noise
         self.gen_input_age = gen_input_age
         self.gen_input_gender = gen_input_gender

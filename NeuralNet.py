@@ -330,7 +330,10 @@ class NeuralNet(object):
                       np.concatenate([truthGenders, genderVec]),
                       outT, outA, outS)
         visualizeImages(truthImages.reshape([self.batch_size, self.image_size, self.image_size, 3]), numRows=5, fileName="last_batch.png")
-        return accTot
+        if self.trainingType == NetworkType.Generator:
+            return accT
+        else:
+            return accTot
 
 
 if __name__ == "__main__":

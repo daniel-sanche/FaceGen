@@ -53,6 +53,16 @@ class NeuralNet(object):
         self.vardict[b_name] = b
         return W, b
 
+    def create_batchnorm_layer(self, prev_layer, layer_shape, name_prefix="bnorm", trainable=True):
+        scale_name = name_prefix + "-S"
+        offset_name = name_prefix + "-O"
+        mean, variance = tf.nn.moments(prev_layer, axes=[0])
+        scale = tf.Variable(tf.ones(layer_shape), name=scale_name, trainable=trainable)
+        offset = tf.Variable(tf.zeros(layer_shape), name=offset_name, trainable=trainable)
+        self.vardict[scale_name] = scale
+        self.vardict[offset_name] = offset
+        return tf.nn.batch_normalization(prev_layer, mean, variance, offset, scale, 1e-8)
+
     def create_upsample_layer(self, prev_layer, new_size):
         resized = tf.image.resize_images(prev_layer, new_size, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         return resized
@@ -96,21 +106,25 @@ class NeuralNet(object):
                                                                  self.noise_size + 2,
                                                                  self.dropout, trainable=train, name_prefix="gen_fc")
         gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 64])
+        gen_squared_fc1_norm = self.create_batchnorm_layer(gen_squared_fc1, [8,8,64], trainable=train, name_prefix="gen_fc")
         # s[1000,8,8,64]
-        gen_unpool1 = self.create_upsample_layer(gen_squared_fc1, 16)
+        gen_unpool1 = self.create_upsample_layer(gen_squared_fc1_norm, 16)
         # [1000,16,16,64]
         gen_unconv1 = self.create_deconv_layer(gen_unpool1, 32, 64, trainable=train, name_prefix="gen_unconv1")
+        gen_unconv1_norm = self.create_batchnorm_layer(gen_unconv1, [16, 16, 32], trainable=train,name_prefix="gen_unconv1")
         # [1000,16,16,32]
-        gen_unpool2 = self.create_upsample_layer(gen_unconv1, 32)
+        gen_unpool2 = self.create_upsample_layer(gen_unconv1_norm, 32)
         # [1000,32,32,32]
         gen_unconv2 = self.create_deconv_layer(gen_unpool2, 16, 32, trainable=train, name_prefix="gen_unconv2")
+        gen_unconv2_norm = self.create_batchnorm_layer(gen_unconv2, [32,32,16], trainable=train,name_prefix="gen_unconv2")
         # [1000,32,32,16]
-        gen_unpool3 = self.create_upsample_layer(gen_unconv2, 64)
+        gen_unpool3 = self.create_upsample_layer(gen_unconv2_norm, 64)
         # [1000,64,64,16]
         gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 16, trainable=train, name_prefix="gen_unconv3")
+        gen_unconv3_norm = self.create_batchnorm_layer(gen_unconv3, [64,64,3], trainable=train,name_prefix="gen_unconv3")
         # [1000,64,64,3]
         totalPixels = self.image_size * self.image_size * 3
-        gen_output_layer = tf.reshape(gen_unconv3, [self.batch_size, totalPixels])
+        gen_output_layer = tf.reshape(gen_unconv3_norm, [self.batch_size, totalPixels])
         # [1000,12288]
         gen_output_thresholded = tf.minimum(1.0, tf.maximum(0.0, gen_output_layer))
 
@@ -136,6 +150,7 @@ class NeuralNet(object):
 
         dis_combined_inputs = tf.concat(0, [dis_input_image, self.gen_output])
         # [2000, 12288]
+
         dis_reshaped_inputs = tf.reshape(dis_combined_inputs, [self.batch_size * 2, self.image_size, self.image_size, 3])
         # [2000, 64, 64, 3]
         dis_conv1 = self.create_conv_layer(dis_reshaped_inputs, conv1Size, 3, trainable=train, name_prefix="dis_conv1")
@@ -316,7 +331,7 @@ class NeuralNet(object):
                       np.concatenate([truthGenders, genderVec]),
                       outT, outA, outS)
         visualizeImages(truthImages.reshape([self.batch_size, self.image_size, self.image_size, 3]), numRows=5, fileName="last_batch.png")
-        return accTot
+        return accT
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import numpy as np
 def trainNetwork(network, saveInterval=500, printInterval=100, goalAcc=0.95, trainDropout=0.5):
     reachedGoal = False
     i = 0
+    lastSave = 0
     while not reachedGoal:
         batchDict = loader.getData()
         batchImage = batchDict["image"]
@@ -16,7 +17,8 @@ def trainNetwork(network, saveInterval=500, printInterval=100, goalAcc=0.95, tra
             reachedGoal = acc >= goalAcc
         network.train(batchImage, batchSex, batchAge, dropoutVal=trainDropout)
         if (i % saveInterval == 0 and i != 0) or reachedGoal:
-            network.saveCheckpoint(saveInterval)
+            network.saveCheckpoint(i-lastSave)
+            lastSave = i
         i = i + 1
     return acc
 

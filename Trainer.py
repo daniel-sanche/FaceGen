@@ -2,11 +2,9 @@ from NeuralNet import  NeuralNet, NetworkType
 from DataLoader import  LoadFilesData, DataLoader
 import numpy as np
 
-def trainNetwork(network, saveInterval=500, printInterval=100, goalAcc=0.95, trainDropout=0.5):
-    reachedGoal = False
+def trainNetwork(network, printInterval=100, rounds=1000, trainDropout=0.5):
     i = 0
-    lastSave = 0
-    while not reachedGoal:
+    while i < rounds:
         batchDict = loader.getData()
         batchImage = batchDict["image"]
         batchAge = batchDict["age"]
@@ -14,12 +12,9 @@ def trainNetwork(network, saveInterval=500, printInterval=100, goalAcc=0.95, tra
         batchImage = batchImage.reshape([batchImage.shape[0], -1])
         if i % printInterval == 0:
             acc = network.printStatus(batchImage, batchSex, batchAge)
-            reachedGoal = acc >= goalAcc
         network.train(batchImage, batchSex, batchAge, dropoutVal=trainDropout)
-        if (i % saveInterval == 0 and i != 0) or reachedGoal:
-            network.saveCheckpoint(i-lastSave)
-            lastSave = i
         i = i + 1
+    network.saveCheckpoint(i)
     return acc
 
 if __name__ == "__main__":
@@ -45,9 +40,9 @@ if __name__ == "__main__":
 
     while True:
         print("__DISCRIMINATOR__")
-        trainNetwork(discriminator, trainDropout=0.7, goalAcc=0.6)
+        trainNetwork(discriminator, trainDropout=0.7)
         print("__GENERATOR__")
         generator.restoreNewestCheckpoint()
-        trainNetwork(generator, trainDropout=0.5, goalAcc=0.6)
+        trainNetwork(generator, trainDropout=0.5)
         discriminator.restoreNewestCheckpoint()
 

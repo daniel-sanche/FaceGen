@@ -34,14 +34,17 @@ class NeuralNet(object):
         W, b = self.create_variables([prev_size, num_classes], [num_classes], name_prefix=name_prefix,trainable=trainable)
         return tf.nn.sigmoid(tf.matmul(prev_layer, W) + b)
 
-    def create_deconv_layer(self, prev_layer, new_depth, prev_depth, trainable=True, name_prefix="deconv", patch_size=3):
+    def create_deconv_layer(self, prev_layer, new_depth, prev_depth, trainable=True, name_prefix="deconv", patch_size=3, relu=True):
         input_shape = prev_layer.get_shape().as_list()
         new_shape = input_shape
         new_shape[-1] = new_depth
         W, b = self.create_variables([patch_size, patch_size, new_depth, prev_depth], [new_depth],
                                           name_prefix=name_prefix, trainable=trainable)
         new_layer = tf.nn.conv2d_transpose(prev_layer, W, new_shape, strides=[1, 1, 1, 1], padding='SAME')
-        return tf.nn.relu(new_layer + b)
+        if relu:
+            return tf.nn.relu(new_layer + b)
+        else:
+            return new_layer + b
 
     def create_variables(self, w_size, b_size, name_prefix="untitled", trainable=True, w_stddev=0.02, b_val=0.1):
         W_name = name_prefix + "-W"

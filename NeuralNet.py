@@ -90,9 +90,12 @@ class NeuralNet(object):
     def _buildGenerator(self, firstImageSize=8):
 
         # build the generator network
-        gen_input_noise = tf.placeholder(tf.float32, shape=[self.batch_size, self.noise_size])
-        gen_fully_connected1 = self.create_fully_connected_layer(gen_input_noise, firstImageSize*firstImageSize*64,
-                                                                 self.noise_size,
+        self.input_sex = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
+        self.input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
+        self.input_noise = tf.placeholder(tf.float32, shape=[self.batch_size, self.noise_size])
+        combined_inputs = tf.concat(1, [self.input_sex, self.input_age, self.input_noise])
+        gen_fully_connected1 = self.create_fully_connected_layer(combined_inputs, firstImageSize * firstImageSize * 64,
+                                                                 self.noise_size+2,
                                                                  name_prefix="gen_fc")
         gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 64])
         gen_squared_fc1_norm = self.create_batchnorm_layer(gen_squared_fc1, [8,8,64], name_prefix="gen_fc")
@@ -112,22 +115,14 @@ class NeuralNet(object):
         gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 16, name_prefix="gen_unconv3")
         gen_unconv3_norm = self.create_batchnorm_layer(gen_unconv3, [64,64,3],name_prefix="gen_unconv3")
         # [1000,64,64,3]
-        gen_output_layer = tf.nn.tanh(gen_unconv3_norm)
+        self.gen_output = tf.nn.tanh(gen_unconv3_norm)
         # [1000,12288]
 
-        #save important nodes
-        self.gen_output = gen_output_layer
-        self.gen_input_noise = gen_input_noise
-        self.gen0 = gen_squared_fc1
-        self.gen1 = gen_unconv1
-        self.gen2 = gen_unconv2
-        self.gen3 = gen_unconv3
-
     def _buildDiscriminator(self, conv1Size, conv2Size, fcSize):
-        dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, 64, 64, 3])
+        self.dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, 64, 64, 3])
         #[1000, 64, 64, 3]
 
-        dis_combined_inputs = tf.concat(0, [self.gen_output, dis_input_image])
+        dis_combined_inputs = tf.concat(0, [self.gen_output, self.dis_input_image])
         # [2000, 64, 64, 3]
         dis_conv1 = self.create_conv_layer(dis_combined_inputs, conv1Size, 3, name_prefix="dis_conv1")
         # [2000, 64, 64, 64]
@@ -143,12 +138,9 @@ class NeuralNet(object):
                                                                       16 * 16 * conv2Size,
                                                                       name_prefix="dis_fc")
         # [2000, 49]
-        dis_output_layer = self.create_output_layer(dis_fully_connected1,fcSize,1,name_prefix="dis_out")
+        self.dis_output = self.create_output_layer(dis_fully_connected1,fcSize,1,name_prefix="dis_out")
         # [2000, 3]
 
-        # save important nodes
-        self.dis_input_image = dis_input_image
-        self.dis_output = dis_output_layer
 
     def _buildCostFunctions(self, learningRate=2e-4, beta1=0.5):
         generated_logits, true_logits = tf.split(0, 2, self.dis_output);
@@ -203,12 +195,7 @@ class NeuralNet(object):
         truthImages.resize([self.batch_size, 64, 64, 3])
         batch_size = self.batch_size
         noise_batch = np.random.uniform(-1, 1, [batch_size, self.noise_size]).astype(np.float32)
-        #ageVec = (np.linspace(start=self.age_range[0], stop=self.age_range[1],
-        #                      num=batch_size) + np.random.sample(batch_size))
-        #ageVec = ageVec.reshape([batch_size, 1]) / self.age_range[1]
-        #ageVec = np.clip(ageVec, 0, 1)
-        #genderVec = np.tile(np.array([0, 1], dtype=np.float64), int(batch_size / 2)).reshape([batch_size, 1])
-        feed_dict = {self.gen_input_noise: noise_batch, self.dis_input_image: truthImages}
+        feed_dict = {self.input_noise: noise_batch, self.input_age:truthAges, self.input_sex:truthGenders, self.dis_input_image: truthImages}
         return feed_dict
 
     def train(self, truthImages, truthGenders, truthAges):
@@ -222,7 +209,7 @@ class NeuralNet(object):
     def printStatus(self,num, truthImages, truthGenders, truthAges):
         feed_dict = self._createFeedDict(truthImages, truthGenders, truthAges)
         #set noise array to always be the same for images, so we can better compare as it learns
-        feed_dict[self.gen_input_noise] = self.print_noise
+        feed_dict[self.input_noise] = self.print_noise
         runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.gen_output)
         errFake, errReal, errGen, images = self.session.run(runList, feed_dict=feed_dict)
         print("d_loss: %.8f, g_loss: %.8f", (errFake + errReal), errGen)

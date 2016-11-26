@@ -246,8 +246,8 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
             prevState[i, 1, 0] = 1
         lastIdx = lastIdx + numPerBin
     imageArr = np.zeros([numPerBin * numBins * 2]+[imageSize, imageSize, 3], dtype=np.float32)
-    sexArr = np.zeros([numPerBin * numBins * 2, 1], dtype=bool)
-    ageArr = np.zeros([numPerBin * numBins * 2, 1], dtype=int)
+    sexArr = np.zeros([numPerBin * numBins * 2, 1], dtype=np.float32)
+    ageArr = np.zeros([numPerBin * numBins * 2, 1], dtype=np.float32)
     i = 0
     for idx in batchIndices:
         path = csvdata["path"][idx]
@@ -258,10 +258,15 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
             image = imresize(image, [imageSize, imageSize, 3])
         if len(image.shape) == 2:
             image = np.resize(image, imageSize)
-        imageArr[i,:,:] = (image / (255.0 / 2.0)) - 1
+        # scale to [-1,1] range of tanh
+        imageArr[i,:,:] = image / 255.0
         sexArr[i] = sex
-        ageArr[i] = age
+        ageArr[i] = age / 100.0
         i = i + 1
+    # scale to [-1,1] range of tanh
+    imageArr = (imageArr * 2) - 1
+    sexArr = (sexArr* 2) - 1
+    ageArr = np.min((ageArr * 2) - 1, 1.0).reshape([-1, 1])
     didVisitAll = np.sum(prevState[:,:,1]) == numBins * 2
     return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 

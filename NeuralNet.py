@@ -215,7 +215,6 @@ class NeuralNet(object):
         self.session.run((self.dis_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
-        #a = self.session.run((self.dis_output), feed_dict=feed_dict)
 
 
     def printStatus(self, truthImages, truthGenders, truthAges):
@@ -223,7 +222,10 @@ class NeuralNet(object):
         runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.gen_output)
         errFake, errReal, errGen, images = self.session.run(runList, feed_dict=feed_dict)
         print("d_loss: %.8f, g_loss: %.8f", (errFake + errReal), errGen)
+        images = (images + 1.0) / 2.0
         visualizeImages(images, numRows=10)
+        truthImages = (truthImages + 1.0) / 2.0
+        visualizeImages(truthImages, numRows=10, fileName="last_batch.png")
 
 
 

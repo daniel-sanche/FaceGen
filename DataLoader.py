@@ -258,7 +258,7 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
             image = imresize(image, [imageSize, imageSize, 3])
         if len(image.shape) == 2:
             image = np.resize(image, imageSize)
-        imageArr[i,:,:] = image / 255.0
+        imageArr[i,:,:] = (image / (255.0 / 2.0)) - 1
         sexArr[i] = sex
         ageArr[i] = age
         i = i + 1

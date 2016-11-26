@@ -203,12 +203,21 @@ class NeuralNet(object):
         feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,
                      self.dis_input_image: truthImages}
 
-        runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.gen_output)
-        errFake, errReal, errGen, images = self.session.run(runList, feed_dict=feed_dict)
+        runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss)
+        errFake, errReal, errGen = self.session.run(runList, feed_dict=feed_dict)
         print("round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen))
-        images = (images + 1.0) / 2.0
-        visualizeImages(images, numRows=8, fileName="./images/run_" + str(num) + ".png" )
-        visualizeImages(images, numRows=8, fileName="output.png" )
+
+        #render images to files
+        printSexLabels = np.repeat([-1,1],self.batch_size/2).reshape([self.batch_size, 1])
+        ageRange = np.linspace(-0.7, 0.7, self.batch_size/2)
+        printAgeLabels = np.concatenate([ageRange, ageRange]).reshape([self.batch_size, 1])
+
+        feed_dict = {self.input_noise: self.print_noise, self.input_age: printAgeLabels, self.input_sex: printSexLabels,
+                     self.dis_input_image: truthImages}
+        outImages = self.session.run(self.gen_output, feed_dict=feed_dict)
+        outImages = (outImages + 1.0) / 2.0
+        visualizeImages(outImages, numRows=8, fileName="./images/run_" + str(num) + ".png" )
+        visualizeImages(outImages, numRows=8, fileName="output.png" )
         truthImages = (truthImages + 1.0) / 2.0
         visualizeImages(truthImages, numRows=8, fileName="last_batch.png")
 

@@ -214,36 +214,8 @@ class NeuralNet(object):
         errFake, errReal, errGen, images = self.session.run(runList, feed_dict=feed_dict)
         print("d_loss: %.8f, g_loss: %.8f", (errFake + errReal), errGen)
         images = (images + 1.0) / 2.0
-        visualizeImages(images, numRows=10, fileName="./images/run_" + str(num) + ".png" )
+        visualizeImages(images, numRows=8, fileName="./images/run_" + str(num) + ".png" )
+        visualizeImages(images, numRows=8, fileName="output.png" )
         truthImages = (truthImages + 1.0) / 2.0
-        visualizeImages(truthImages, numRows=10, fileName="last_batch.png")
+        visualizeImages(truthImages, numRows=8, fileName="last_batch.png")
 
-
-
-if __name__ == "__main__":
-    #initialize the data loader
-    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
-    csvPath = "./dataset.csv"
-    indicesPath = "./indices.p"
-    csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
-
-    saveSteps = 10
-    image_size = 64
-    numPerBin = 10
-    batch_size = numPerBin * 8 * 2
-    loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size)
-    loader.start()
-
-    #start training
-    discriminator = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=20)
-    i=0
-    while True:
-        batchDict = loader.getData()
-        batchImage = batchDict["image"]
-        batchAge = batchDict["age"]
-        batchSex = batchDict["sex"]
-        batchImage = batchImage.reshape([batch_size, -1])
-        discriminator.train(batchImage, batchSex, batchAge, print_results=i%saveSteps==0)
-        if i%saveSteps==0 and i != 0:
-            discriminator.saveCheckpoint(saveSteps)
-        i=i+1

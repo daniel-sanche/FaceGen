@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     saveSteps = 10
     image_size = 64
-    numPerBin = 5
+    numPerBin = 4
     batch_size = numPerBin * 8 * 2
     noise_size = 100
     loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size, numWorkerThreads=10, bufferMax=20, debugLogs=False)

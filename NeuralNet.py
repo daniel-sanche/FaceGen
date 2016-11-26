@@ -205,7 +205,7 @@ class NeuralNet(object):
 
         runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.gen_output)
         errFake, errReal, errGen, images = self.session.run(runList, feed_dict=feed_dict)
-        print("d_loss: %.8f, g_loss: %.8f", (errFake + errReal), errGen)
+        print("round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen))
         images = (images + 1.0) / 2.0
         visualizeImages(images, numRows=8, fileName="./images/run_" + str(num) + ".png" )
         visualizeImages(images, numRows=8, fileName="output.png" )

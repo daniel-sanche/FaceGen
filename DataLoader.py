@@ -266,7 +266,7 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
     # scale to [-1,1] range of tanh
     imageArr = (imageArr * 2) - 1
     sexArr = (sexArr* 2) - 1
-    ageArr = np.min((ageArr * 2) - 1, 1.0).reshape([-1, 1])
+    ageArr = np.min((ageArr * 2) - 1, 1).reshape([-1, 1])
     didVisitAll = np.sum(prevState[:,:,1]) == numBins * 2
     return {"image":imageArr, "sex":sexArr, "age":ageArr}, prevState, didVisitAll
 

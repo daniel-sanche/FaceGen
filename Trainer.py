@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
     printInterval = 100
     saveInterval = 1000
+    loadedCheckpoint = network.checkpoint_num
     i=0
     while True:
         batchImage = batchDict["image"]
@@ -54,7 +55,7 @@ if __name__ == "__main__":
         batchSex = batchDict["sex"]
         batchImage = batchImage.reshape([batchImage.shape[0], -1])
         if i % printInterval == 0:
-            network.printStatus(batchImage, batchSex, batchAge)
+            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge)
         network.train(batchImage, batchSex, batchAge)
         if i % saveInterval == 0 and i != 0:
             network.saveCheckpoint(saveInterval)

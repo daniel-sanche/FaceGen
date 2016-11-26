@@ -36,6 +36,11 @@ Params
     fileName:       the name of the output png
 """
 def visualizeImages(imageMat, numRows=5, maxImgSize=64, fileName="images_set.png"):
+    #create directory if necessary
+    path = os.path.dirname(os.path.abspath(fileName))
+    if not os.path.exists(path):
+        os.mkdir(path)
+
     numItems = imageMat.shape[0]
     numCols = int(ceil(numItems / numRows))
     imageSize = [imageMat.shape[1], imageMat.shape[2], imageMat.shape[3]]

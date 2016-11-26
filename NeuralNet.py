@@ -74,6 +74,8 @@ class NeuralNet(object):
         self._buildDiscriminator(conv1Size=64, conv2Size=32, fcSize=49)
         self._buildCostFunctions(learningRate=learningRate)
 
+        self.print_noise = np.random.uniform(-1, 1, [batch_size, self.noise_size]).astype(np.float32)
+
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())
         self.session = sess
@@ -217,13 +219,15 @@ class NeuralNet(object):
         self.session.run((self.gen_train), feed_dict=feed_dict)
 
 
-    def printStatus(self, truthImages, truthGenders, truthAges):
+    def printStatus(self,num, truthImages, truthGenders, truthAges):
         feed_dict = self._createFeedDict(truthImages, truthGenders, truthAges)
+        #set noise array to always be the same for images, so we can better compare as it learns
+        feed_dict[self.gen_input_noise] = self.print_noise
         runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.gen_output)
         errFake, errReal, errGen, images = self.session.run(runList, feed_dict=feed_dict)
         print("d_loss: %.8f, g_loss: %.8f", (errFake + errReal), errGen)
         images = (images + 1.0) / 2.0
-        visualizeImages(images, numRows=10)
+        visualizeImages(images, numRows=10, fileName="./images/run_" + str(num) + ".png" )
         truthImages = (truthImages + 1.0) / 2.0
         visualizeImages(truthImages, numRows=10, fileName="last_batch.png")
 

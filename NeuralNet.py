@@ -190,26 +190,19 @@ class NeuralNet(object):
             print("no checkpoint found named " + self.checkpoint_name + " in " + self.checkpoint_dir)
         self.checkpoint_num = highest_found
 
-
-    def _createFeedDict(self, truthImages, truthGenders, truthAges):
-        truthImages.resize([self.batch_size, 64, 64, 3])
-        batch_size = self.batch_size
-        noise_batch = np.random.uniform(-1, 1, [batch_size, self.noise_size]).astype(np.float32)
-        feed_dict = {self.input_noise: noise_batch, self.input_age:truthAges, self.input_sex:truthGenders, self.dis_input_image: truthImages}
-        return feed_dict
-
     def train(self, truthImages, truthGenders, truthAges):
-        feed_dict = self._createFeedDict(truthImages, truthGenders, truthAges)
-        #gen0, gen1, gen2, gen3 = self.session.run((self.gen0, self.gen1,self.gen2,self.gen3), feed_dict=feed_dict)
+        noise_batch = np.random.uniform(-1, 1, [self.batch_size, self.noise_size]).astype(np.float32)
+        feed_dict = {self.input_noise: noise_batch, self.input_age: truthAges, self.input_sex: truthGenders,
+                     self.dis_input_image: truthImages}
         self.session.run((self.dis_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
 
 
     def printStatus(self,num, truthImages, truthGenders, truthAges):
-        feed_dict = self._createFeedDict(truthImages, truthGenders, truthAges)
-        #set noise array to always be the same for images, so we can better compare as it learns
-        feed_dict[self.input_noise] = self.print_noise
+        feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,
+                     self.dis_input_image: truthImages}
+
         runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.gen_output)
         errFake, errReal, errGen, images = self.session.run(runList, feed_dict=feed_dict)
         print("d_loss: %.8f, g_loss: %.8f", (errFake + errReal), errGen)

@@ -53,7 +53,6 @@ if __name__ == "__main__":
         batchImage = batchDict["image"]
         batchAge = batchDict["age"]
         batchSex = batchDict["sex"]
-        batchImage = batchImage.reshape([batchImage.shape[0], -1])
         if i % printInterval == 0:
             network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge)
         network.train(batchImage, batchSex, batchAge)

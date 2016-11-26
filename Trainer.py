@@ -1,4 +1,4 @@
-from NeuralNet import  NeuralNet, NetworkType
+from NeuralNet import  NeuralNet
 from DataLoader import  LoadFilesData, DataLoader
 import numpy as np
 
@@ -42,16 +42,22 @@ if __name__ == "__main__":
     loader.start()
 
     # start training
-    discriminator = NeuralNet(trainingType=NetworkType.Discriminator, batch_size=batch_size, image_size=image_size,
-                              noise_size=noise_size)
-    generator = NeuralNet(trainingType=NetworkType.Generator, batch_size=batch_size, image_size=image_size,
-            noise_size=noise_size)
+    network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size)
     batchDict = loader.getData()
+
+    printInterval = 100
+    saveInterval = 1000
+    i=0
     while True:
-        print("__DISCRIMINATOR__")
-        trainNetwork(discriminator, batchDict,  endEarlyFunc=stopFuncDiscriminator)
-        print("__GENERATOR__")
-        generator.restoreNewestCheckpoint()
-        trainNetwork(generator, batchDict, endEarlyFunc=stopFuncGenerator)
-        discriminator.restoreNewestCheckpoint()
+        batchImage = batchDict["image"]
+        batchAge = batchDict["age"]
+        batchSex = batchDict["sex"]
+        batchImage = batchImage.reshape([batchImage.shape[0], -1])
+        if i % printInterval == 0:
+            network.printStatus(batchImage, batchSex, batchAge)
+        network.train(batchImage, batchSex, batchAge)
+        if i % saveInterval == 0 and i != 0:
+            network.saveCheckpoint(saveInterval)
+        i = i + 1
+
 

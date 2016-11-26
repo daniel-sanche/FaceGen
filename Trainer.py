@@ -12,7 +12,7 @@ def stopFuncDiscriminator(costDict):
     return truth > 0.85 and sex > 0.6
 
 
-def trainNetwork(network, batchDict, printInterval=100, rounds=1000, trainDropout=0.5, endEarlyFunc=None):
+def trainNetwork(network, batchDict, printInterval=100, rounds=100, endEarlyFunc=None):
     i = 0
     endEarly = False
     while i < rounds and not endEarly:
@@ -21,10 +21,8 @@ def trainNetwork(network, batchDict, printInterval=100, rounds=1000, trainDropou
         batchSex = batchDict["sex"]
         batchImage = batchImage.reshape([batchImage.shape[0], -1])
         if i % printInterval == 0:
-            accDict = network.printStatus(batchImage, batchSex, batchAge)
-            if endEarlyFunc is not None:
-                endEarly = endEarlyFunc(accDict)
-        network.train(batchImage, batchSex, batchAge, dropoutVal=trainDropout)
+            network.printStatus(batchImage, batchSex, batchAge)
+        network.train(batchImage, batchSex, batchAge)
         i = i + 1
     network.saveCheckpoint(i)
 
@@ -51,9 +49,9 @@ if __name__ == "__main__":
     batchDict = loader.getData()
     while True:
         print("__DISCRIMINATOR__")
-        trainNetwork(discriminator, batchDict, trainDropout=0.7,  endEarlyFunc=stopFuncDiscriminator)
+        trainNetwork(discriminator, batchDict,  endEarlyFunc=stopFuncDiscriminator)
         print("__GENERATOR__")
         generator.restoreNewestCheckpoint()
-        trainNetwork(generator, batchDict, trainDropout=0.5, endEarlyFunc=stopFuncGenerator)
+        trainNetwork(generator, batchDict, endEarlyFunc=stopFuncGenerator)
         discriminator.restoreNewestCheckpoint()
 

@@ -212,7 +212,7 @@ class NeuralNet(object):
     def train(self, truthImages, truthGenders, truthAges):
         feed_dict = self._createFeedDict(truthImages, truthGenders, truthAges)
         #gen0, gen1, gen2, gen3 = self.session.run((self.gen0, self.gen1,self.gen2,self.gen3), feed_dict=feed_dict)
-        #self.session.run((self.dis_train), feed_dict=feed_dict)
+        self.session.run((self.dis_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         #a = self.session.run((self.dis_output), feed_dict=feed_dict)

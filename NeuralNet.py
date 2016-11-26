@@ -120,11 +120,20 @@ class NeuralNet(object):
 
     def _buildDiscriminator(self, conv1Size, conv2Size, fcSize):
         self.dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, 64, 64, 3])
-        #[1000, 64, 64, 3]
-
         dis_combined_inputs = tf.concat(0, [self.gen_output, self.dis_input_image])
+        #[2000, 64, 64, 3]
+
+        #combine sex and age as new channels on the image
+        sex_channel = tf.ones([self.batch_size, self.image_size*self.image_size]) * self.input_sex
+        sex_channel = tf.concat(0, [sex_channel, sex_channel])
+        sex_channel = tf.reshape(sex_channel, [self.batch_size*2, 64, 64, 1])
+        age_channel = tf.ones([self.batch_size, self.image_size * self.image_size]) * self.input_age
+        age_channel =  tf.concat(0, [age_channel, age_channel])
+        age_channel = tf.reshape(age_channel, [self.batch_size * 2, 64, 64, 1])
+        combined_channels = tf.concat(3, [dis_combined_inputs, sex_channel, age_channel])
+
         # [2000, 64, 64, 3]
-        dis_conv1 = self.create_conv_layer(dis_combined_inputs, conv1Size, 3, name_prefix="dis_conv1")
+        dis_conv1 = self.create_conv_layer(combined_channels, conv1Size, 5, name_prefix="dis_conv1")
         # [2000, 64, 64, 64]
         dis_pool1 = self.create_max_pool_layer(dis_conv1)
         # [2000, 32, 32, 64]
@@ -197,7 +206,6 @@ class NeuralNet(object):
         self.session.run((self.dis_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
-
 
     def printStatus(self,num, truthImages, truthGenders, truthAges):
         feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,

@@ -28,7 +28,7 @@ class NeuralNet(object):
 
     def create_output_layer(self, prev_layer, prev_size, num_classes, name_prefix="out"):
         W, b = self.create_variables([prev_size, num_classes], [num_classes], name_prefix=name_prefix)
-        return tf.nn.sigmoid(tf.matmul(prev_layer, W) + b)
+        return tf.matmul(prev_layer, W) + b
 
     def create_deconv_layer(self, prev_layer, new_depth, prev_depth, name_prefix="deconv", patch_size=3, relu=True):
         input_shape = prev_layer.get_shape().as_list()
@@ -148,7 +148,7 @@ class NeuralNet(object):
         self.dis_input_image = dis_input_image
         self.dis_output = dis_output_layer
 
-    def _buildCostFunctions(self, learningRate=1e-4, beta1=0.5):
+    def _buildCostFunctions(self, learningRate=2e-4, beta1=0.5):
         generated_logits, true_logits = tf.split(0, 2, self.dis_output);
 
         self.dis_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(true_logits, tf.ones([self.batch_size, 1])))
@@ -158,11 +158,11 @@ class NeuralNet(object):
         self.gen_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(generated_logits, tf.ones([self.batch_size, 1])))
 
         t_vars = tf.trainable_variables()
-        self.dis_vars = [var for var in t_vars if 'dis_' in var.name]
-        self.gen_vars = [var for var in t_vars if 'gen_' in var.name]
+        dis_vars = [var for var in t_vars if 'dis_' in var.name]
+        gen_vars = [var for var in t_vars if 'gen_' in var.name]
 
-        self.dis_train = tf.train.AdamOptimizer(learningRate, beta1=beta1).minimize(self.dis_loss, var_list=self.dis_vars)
-        self.gen_train = tf.train.AdamOptimizer(learningRate, beta1=beta1).minimize(self.gen_loss, var_list=self.gen_vars)
+        self.dis_train = tf.train.AdamOptimizer(learningRate, beta1=beta1).minimize(self.dis_loss, var_list=dis_vars)
+        self.gen_train = tf.train.AdamOptimizer(learningRate, beta1=beta1).minimize(self.gen_loss, var_list=gen_vars)
 
 
     """
@@ -215,7 +215,7 @@ class NeuralNet(object):
         self.session.run((self.dis_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
-        a,b = self.session.run((self.dis_vars, self.gen_vars), feed_dict=feed_dict)
+        #a = self.session.run((self.dis_output), feed_dict=feed_dict)
 
 
     def printStatus(self, truthImages, truthGenders, truthAges):

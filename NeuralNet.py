@@ -125,7 +125,7 @@ class NeuralNet(object):
         dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, 64, 64, 3])
         #[1000, 64, 64, 3]
 
-        dis_combined_inputs = tf.concat(0, [dis_input_image, self.gen_output])
+        dis_combined_inputs = tf.concat(0, [self.gen_output, dis_input_image])
         # [2000, 64, 64, 3]
         dis_conv1 = self.create_conv_layer(dis_combined_inputs, conv1Size, 3, name_prefix="dis_conv1")
         # [2000, 64, 64, 64]
@@ -212,7 +212,7 @@ class NeuralNet(object):
     def train(self, truthImages, truthGenders, truthAges):
         feed_dict = self._createFeedDict(truthImages, truthGenders, truthAges)
         #gen0, gen1, gen2, gen3 = self.session.run((self.gen0, self.gen1,self.gen2,self.gen3), feed_dict=feed_dict)
-        self.session.run((self.dis_train), feed_dict=feed_dict)
+        #self.session.run((self.dis_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         self.session.run((self.gen_train), feed_dict=feed_dict)
         #a = self.session.run((self.dis_output), feed_dict=feed_dict)

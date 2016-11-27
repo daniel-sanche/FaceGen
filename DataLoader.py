@@ -263,6 +263,9 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
         sexArr[i] = sex
         ageArr[i] = age / 100.0
         i = i + 1
+    #add some nose to the age, so it doesn't learn to memorize some faces
+    ageNoise = np.random.normal(0, 0.015, ageArr.shape)
+    ageArr = ageArr + ageNoise
     # scale to [-1,1] range of tanh
     imageArr = (imageArr * 2) - 1
     sexArr = (sexArr* 2) - 1
@@ -437,21 +440,6 @@ def LoadFilesData(datasetDir, csvPath="./dataset.csv", indicesPath="./indices.p"
     file.close()
     _randomizeIndices(indices)
     return csvdata, indices
-
-if __name__ == "__main__":
-    datasetDir = "/Users/Sanche/Datasets/IMDB-WIKI"
-    csvPath = "./dataset.csv"
-    indicesPath = "./indices.p"
-
-    csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
-    #run in new thread
-    loader = DataLoader(indices, csvdata, numPerBin=10, imageSize=60, numWorkerThreads=5)
-    loader.start()
-    while True:
-        nextData = loader.getData()
-        time.sleep(20)
-
-
 
 
 

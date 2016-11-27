@@ -43,13 +43,13 @@ if __name__ == "__main__":
 
     # start training
     network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size)
-    batchDict = loader.getData()
 
     printInterval = 100
     saveInterval = 1000
     loadedCheckpoint = network.checkpoint_num
     i=0
     while True:
+        batchDict = loader.getData()
         batchImage = batchDict["image"]
         batchAge = batchDict["age"]
         batchSex = batchDict["sex"]

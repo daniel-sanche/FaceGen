@@ -6,6 +6,7 @@ from Visualization import visualizeImages, csvFromOutput
 from enum import Enum
 from os import walk, path, mkdir
 import pandas as pd
+import pickle
 
 class NeuralNet(object):
     """"""
@@ -74,7 +75,17 @@ class NeuralNet(object):
         self._buildDiscriminator(conv1Size=64, conv2Size=32, fcSize=49)
         self._buildCostFunctions(learningRate=learningRate)
 
-        self.print_noise = np.random.uniform(-1, 1, [batch_size, self.noise_size]).astype(np.float32)
+        #create a constant noise vector for printing, so we can watch images improve over time
+        print_noise_path = "print_noise.p"
+        if path.exists(print_noise_path):
+            file = open(print_noise_path, "rb")
+            self.print_noise = pickle.load(file)
+        else:
+            #use the same noise values for men and women to see how similar they are
+            noise_single = np.random.uniform(-1, 1, [self.batch_size/ 2, self.noise_size])
+            self.print_noise = np.concatenate([noise_single, noise_single]).reshape([self.batch_size,self.noise_size])
+            file = open(print_noise_path, "wb")
+            pickle.dump(self.print_noise, file)
 
         sess = tf.Session()
         sess.run(tf.initialize_all_variables())

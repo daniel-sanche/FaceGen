@@ -65,7 +65,7 @@ class NeuralNet(object):
     """
     Initialization Helpers
     """
-    def __init__(self, batch_size=1000, chkptDir="./checkpoints", chkptName="FaceGen.ckpt",image_size=64, noise_size=1000, age_range=[10, 100], learningRate=1e-4):
+    def __init__(self, batch_size=1000, chkptDir="./checkpoints", chkptName="FaceGen.ckpt",image_size=64, noise_size=1000, age_range=[10, 100], learningRate=2e-5):
         self.age_range = age_range
         self.batch_size = batch_size
         self.image_size = image_size

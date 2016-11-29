@@ -214,9 +214,12 @@ class NeuralNet(object):
         noise_batch = np.random.uniform(-1, 1, [self.batch_size, self.noise_size]).astype(np.float32)
         feed_dict = {self.input_noise: noise_batch, self.input_age: truthAges, self.input_sex: truthGenders,
                      self.dis_input_image: truthImages}
-        self.session.run((self.dis_train), feed_dict=feed_dict)
-        self.session.run((self.gen_train), feed_dict=feed_dict)
-        self.session.run((self.gen_train), feed_dict=feed_dict)
+        errFake, errReal, gen_cost = self.session.run((self.dis_loss_fake, self.dis_loss_real, self.gen_loss), feed_dict=feed_dict)
+        dis_cost = errFake + errReal
+        if gen_cost/dis_cost < 3:
+            self.session.run((self.dis_train), feed_dict=feed_dict)
+        if dis_cost/gen_cost < 3:
+            self.session.run((self.gen_train), feed_dict=feed_dict)
 
     def printStatus(self,num, truthImages, truthGenders, truthAges):
         feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,

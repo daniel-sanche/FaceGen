@@ -73,7 +73,7 @@ class NeuralNet(object):
 
         self._buildGenerator(firstImageSize=8)
         self._buildDiscriminator(conv1Size=64, conv2Size=32, fcSize=49)
-        self._buildCostFunctions(learningRate=learningRate)
+        self._buildCostFunctions(startLearningRate=learningRate)
 
         #create a constant noise vector for printing, so we can watch images improve over time
         print_noise_path = "print_noise.p"
@@ -162,7 +162,14 @@ class NeuralNet(object):
         # [2000, 3]
 
 
-    def _buildCostFunctions(self, learningRate=2e-4, beta1=0.5):
+    def _buildCostFunctions(self, startLearningRate=2e-4, rateDecay=0.999, minLearningRate=1e-6):
+        #find current learning rate
+        dis_step = tf.Variable(0, trainable=False)
+        gen_step = tf.Variable(0, trainable=False)
+        curr_step = tf.maximum(dis_step, gen_step)
+        current_rate = tf.train.exponential_decay(startLearningRate, curr_step, 100, rateDecay, staircase=True)
+        self.current_rate = tf.maximum(current_rate, minLearningRate)
+
         generated_logits, true_logits = tf.split(0, 2, self.dis_output);
 
         self.dis_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(true_logits, tf.ones([self.batch_size, 1])))
@@ -175,8 +182,8 @@ class NeuralNet(object):
         dis_vars = [var for var in t_vars if 'dis_' in var.name]
         gen_vars = [var for var in t_vars if 'gen_' in var.name]
 
-        self.dis_train = tf.train.AdamOptimizer(learningRate, beta1=beta1).minimize(self.dis_loss, var_list=dis_vars)
-        self.gen_train = tf.train.AdamOptimizer(learningRate, beta1=beta1).minimize(self.gen_loss, var_list=gen_vars)
+        self.dis_train = tf.train.AdamOptimizer(self.current_rate).minimize(self.dis_loss, var_list=dis_vars, global_step=dis_step)
+        self.gen_train = tf.train.AdamOptimizer(self.current_rate).minimize(self.gen_loss, var_list=gen_vars, global_step=gen_step)
 
 
     """
@@ -225,9 +232,9 @@ class NeuralNet(object):
         feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,
                      self.dis_input_image: truthImages}
 
-        runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss)
-        errFake, errReal, errGen = self.session.run(runList, feed_dict=feed_dict)
-        print("round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen))
+        runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.current_rate)
+        errFake, errReal, errGen, rate = self.session.run(runList, feed_dict=feed_dict)
+        print("round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen) + " learning_rate: " + str(rate))
 
         #render images to files
         printSexLabels = np.repeat([-1,1],self.batch_size/2).reshape([self.batch_size, 1])

@@ -154,12 +154,15 @@ class NeuralNet(object):
         # [2000, 16, 16, 32]
         dis_pool2_flattened = tf.reshape(dis_pool2, [self.batch_size*2, -1])
         # [2000, 8192]
-        dis_fully_connected1 = self.create_fully_connected_layer(dis_pool2_flattened, fcSize,
-                                                                      16 * 16 * conv2Size,
+        dis_combined_vec = tf.concat(1, [dis_pool2_flattened,
+                                         tf.concat(0, [self.input_sex, self.input_sex]),
+                                         tf.concat(0, [self.input_age, self.input_age])])
+        dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 1000,
+                                                                      16 * 16 * conv2Size+2,
                                                                       name_prefix="dis_fc")
-        # [2000, 49]
-        self.dis_output = self.create_output_layer(dis_fully_connected1,fcSize,1,name_prefix="dis_out")
-        # [2000, 3]
+        # [2000, 1000]
+        self.dis_output = self.create_output_layer(dis_fully_connected1,1000,1,name_prefix="dis_out")
+        # [2000, 1]
 
 
     def _buildCostFunctions(self, startLearningRate=2e-4, beta1=0.5, rateDecay=0.996, minLearningRate=1e-5):

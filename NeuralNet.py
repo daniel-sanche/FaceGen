@@ -59,7 +59,7 @@ class NeuralNet(object):
         return tf.nn.batch_normalization(prev_layer, mean, variance, offset, scale, 1e-8)
 
     def create_upsample_layer(self, prev_layer, new_size):
-        resized = tf.image.resize_images(prev_layer, new_size, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        resized = tf.image.resize_images(prev_layer, [new_size, new_size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         return resized
 
     """
@@ -253,28 +253,25 @@ class NeuralNet(object):
         truthImages = (truthImages + 1.0) / 2.0
         visualizeImages(truthImages, numRows=8, fileName="last_batch.png")
 
-    def randomSample(self, sampleSize, gender=None, age=None):
-        numRuns = int(ceil(sampleSize/float(self.batch_size)))
-        returnMat = np.zeros([numRuns*self.batch_size, self.image_size, self.image_size, 3])
+    def getSample(self, noiseMat, genderMat, ageMat):
+        sampleSize = noiseMat.shape[0]
+        numRuns = int(ceil(sampleSize / float(self.batch_size)))
+        #add zeros to end of vectors
+        noiseMat = np.concatenate([noiseMat, np.zeros([self.batch_size, self.noise_size])])
+        genderMat = np.concatenate([genderMat, np.zeros([self.batch_size, 1])])
+        ageMat = np.concatenate([ageMat, np.zeros([self.batch_size, 1])])
+
+        returnMat = np.zeros([numRuns * self.batch_size, self.image_size, self.image_size, 3])
         placeholderImages = np.zeros([self.batch_size, self.image_size, self.image_size, 3])
-        currentPos = 0
-        for i in range(numRuns):
-            if gender is not None:
-                genderVec = np.ones([self.batch_size, 1]) * (gender != 0)
-            else:
-                genderVec = np.random.randint(2, size=self.batch_size)
-            if age is not None:
-                ageVec = np.ones([self.batch_size, 1]) * age
-            else:
-                ageVec = np.random.randint(15, 75, size=self.batch_size)
-            genderVec = ((genderVec * 2) - 1).astype(np.float32).reshape([-1, 1])
-            ageVec = (((ageVec / 100) * 2) - 1).astype(np.float32).reshape([-1, 1])
-            noiseVec = np.random.uniform(-1, 1, [self.batch_size, self.noise_size]).astype(np.float32)
-            feed_dict = {self.input_noise:noiseVec, self.input_age:ageVec, self.input_sex:genderVec,
+        currIdx = 0
+        for _ in range(numRuns):
+            feed_dict = {self.input_noise: noiseMat[currIdx:currIdx+self.batch_size],
+                         self.input_age: ageMat[currIdx:currIdx+self.batch_size],
+                         self.input_sex: genderMat[currIdx:currIdx+self.batch_size],
                          self.dis_input_image: placeholderImages}
             resultMat = self.session.run(self.gen_output, feed_dict=feed_dict)
-            returnMat[currentPos:currentPos+self.batch_size,:,:,:] = resultMat
-            currentPos = currentPos + self.batch_size
-        return returnMat[:sampleSize,:,:,:]
+            returnMat[currIdx:currIdx + self.batch_size, :, :, :] = resultMat
+            currIdx = currIdx + self.batch_size
+        return returnMat[:sampleSize, :, :, :]
 
 

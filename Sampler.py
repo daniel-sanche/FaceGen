@@ -1,6 +1,23 @@
 from NeuralNet import  NeuralNet
 from DataLoader import  LoadFilesData, DataLoader
 from Visualization import visualizeImages
+from math import ceil
+import numpy as np
+
+
+def randomSample(network, sampleSize, gender=None, age=None):
+    if gender is not None:
+        genderVec = np.ones([sampleSize, 1]) * (gender != 0)
+    else:
+        genderVec = np.random.randint(2, size=sampleSize)
+    if age is not None:
+        ageVec = np.ones([sampleSize, 1]) * age
+    else:
+        ageVec = np.random.randint(15, 75, size=sampleSize)
+    genderVec = ((genderVec * 2) - 1).astype(np.float32).reshape([-1, 1])
+    ageVec = (((ageVec / 100) * 2) - 1).astype(np.float32).reshape([-1, 1])
+    noiseVec = np.random.uniform(-1, 1, [sampleSize, network.noise_size]).astype(np.float32)
+    return network.getSample(noiseVec, genderVec, ageVec)
 
 if __name__ == "__main__":
     # initialize the data loader
@@ -13,5 +30,5 @@ if __name__ == "__main__":
     # start training
     network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
 
-    sample = network.randomSample(100)
+    sample = randomSample(network, 100)
     visualizeImages(sample, numRows=10, fileName="sample.png")

@@ -28,7 +28,7 @@ def ageSample(network, numImages, minAge=25, maxAge=65, gender=None, noiseArr=No
         gender = np.random.randint(2, size=1)
     if noiseArr is None:
         noiseArr = np.random.uniform(-1, 1, [1, network.noise_size]).astype(np.float32)
-    ageMat = (((np.linspace(minAge, maxAge, numImages) / 100) * 2) - 1).reshape([numImages, 1])
+    ageMat = (((np.linspace(minAge, maxAge, numImages, dtype=int) / 100) * 2) - 1).reshape([numImages, 1])
     genderMat = ((np.ones([numImages, 1]) * gender) * 2) - 1
     noiseMat = np.ones([numImages, network.noise_size]) * noiseArr
     samples = network.getSample(noiseMat, genderMat, ageMat)

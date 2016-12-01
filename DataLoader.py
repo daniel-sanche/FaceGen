@@ -25,7 +25,7 @@ Params
 Returns
     0: the dataframe the .csv represents
 """
-def createCsv(datasetDir, ageRange=[10, 100], minScore=0, minRes=(60*60), filterGender=True, filterRGB=True):
+def createCsv(datasetDir, ageRange=[10, 100], minScore=1, minRes=(60*60), filterGender=True, filterRGB=True):
     combinedDf = None
     for fileType in ["wiki", "imdb"]:
         matFile = loadmat(os.path.join(datasetDir, fileType+"_crop", fileType+".mat"))

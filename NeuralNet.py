@@ -162,7 +162,7 @@ class NeuralNet(object):
         # [2000, 3]
 
 
-    def _buildCostFunctions(self, startLearningRate=2e-4, rateDecay=0.999, minLearningRate=1e-6):
+    def _buildCostFunctions(self, startLearningRate=2e-4, beta1=0.5, rateDecay=0.996, minLearningRate=1e-5):
         #find current learning rate
         dis_step = tf.Variable(0, trainable=False)
         gen_step = tf.Variable(0, trainable=False)
@@ -182,8 +182,8 @@ class NeuralNet(object):
         dis_vars = [var for var in t_vars if 'dis_' in var.name]
         gen_vars = [var for var in t_vars if 'gen_' in var.name]
 
-        self.dis_train = tf.train.AdamOptimizer(self.current_rate).minimize(self.dis_loss, var_list=dis_vars, global_step=dis_step)
-        self.gen_train = tf.train.AdamOptimizer(self.current_rate).minimize(self.gen_loss, var_list=gen_vars, global_step=gen_step)
+        self.dis_train = tf.train.AdamOptimizer(self.current_rate, beta1=beta1).minimize(self.dis_loss, var_list=dis_vars, global_step=dis_step)
+        self.gen_train = tf.train.AdamOptimizer(self.current_rate, beta1=beta1).minimize(self.gen_loss, var_list=gen_vars, global_step=gen_step)
 
 
     """

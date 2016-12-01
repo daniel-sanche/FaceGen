@@ -13,12 +13,12 @@ if __name__ == "__main__":
     image_size = 64
     numPerBin = 4
     batch_size = numPerBin * 8 * 2
-    noise_size = 100
+    noise_size = 500
     loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size, numWorkerThreads=10, bufferMax=20, debugLogs=False)
     loader.start()
 
     # start training
-    network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=2e-4)
+    network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
 
     printInterval = 100
     saveInterval = 1000

@@ -21,11 +21,12 @@ Params
     minRes:     the minimum resolution image to keep
     filterGender:   a bool that determines whether to trim out faces with unlabeled geneders
     filterRGB:  determines whether we should filter out b/w images (or other encodings)
+    filterMult: determines whether images with multiple faces should be filtered out
 
 Returns
     0: the dataframe the .csv represents
 """
-def createCsv(datasetDir, ageRange=[10, 100], minScore=1, minRes=(60*60), filterGender=True, filterRGB=True):
+def createCsv(datasetDir, ageRange=[10, 100], minScore=1, minRes=(60*60), filterGender=True, filterRGB=True, filterMult=True):
     combinedDf = None
     for fileType in ["wiki", "imdb"]:
         matFile = loadmat(os.path.join(datasetDir, fileType+"_crop", fileType+".mat"))
@@ -90,7 +91,7 @@ def createCsv(datasetDir, ageRange=[10, 100], minScore=1, minRes=(60*60), filter
             combinedDf = df
         else:
             combinedDf = pd.concat([combinedDf, df])
-    return _filterDataframe(combinedDf, ageRange, minScore, minRes, filterGender, filterRGB)
+    return _filterDataframe(combinedDf, ageRange, minScore, minRes, filterGender, filterRGB, filterMult)
 
 """
 Helper function to filter csv dataset
@@ -103,12 +104,13 @@ Params
     minRes:     the minimum resolution image to keep
     filterGender:   a bool that determines whether to trim out faces with unlabeled geneders
     filterRGB:  determines whether we should filter out b/w images (or other encodings)
+    filterMult: determines whether images with multiple faces should be filtered out
     indexPath: if specified, will delete the old index and generate a new one
 
 Returns
     0: the filtered dataframe
 """
-def _filterDataframe(csvData, ageRange, minScore, minRes, filterGender, filterRGB, indexPath=None):
+def _filterDataframe(csvData, ageRange, minScore, minRes, filterGender, filterRGB, filterMult, indexPath=None):
     numLeft = len(csvData.index)
     print(numLeft, " images found")
     if minScore is not None:
@@ -132,6 +134,10 @@ def _filterDataframe(csvData, ageRange, minScore, minRes, filterGender, filterRG
         csvData = csvData[csvData.image_format == "RGB"]
         numLeft = len(csvData.index)
         print("filtered non-RGB images: ", numLeft, " images remaining")
+    if filterMult:
+        csvData = csvData[csvData.second_face.isnull()]
+        numLeft = len(csvData.index)
+        print("filtered out multiple faces: ", numLeft, " images remaining")
     if indexPath is not None:
         print ("creating new index file")
         os.remove(indexPath)

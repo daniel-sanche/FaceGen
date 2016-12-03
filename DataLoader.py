@@ -269,9 +269,6 @@ def getBatch(indices, csvdata, numPerBin=100, imageSize=250, prevState=None):
         sexArr[i] = sex
         ageArr[i] = age / 100.0
         i = i + 1
-    #add some nose to the age, so it doesn't learn to memorize some faces
-    ageNoise = np.random.normal(0, 0.015, ageArr.shape)
-    ageArr = ageArr + ageNoise
     # scale to [-1,1] range of tanh
     imageArr = (imageArr * 2) - 1
     sexArr = (sexArr* 2) - 1

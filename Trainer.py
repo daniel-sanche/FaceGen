@@ -18,7 +18,7 @@ if __name__ == "__main__":
     loader.start()
 
     # start training
-    network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
+    network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=1e-3)
 
     printInterval = 100
     saveInterval = 1000

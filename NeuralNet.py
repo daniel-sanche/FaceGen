@@ -59,7 +59,7 @@ class NeuralNet(object):
         return tf.nn.batch_normalization(prev_layer, mean, variance, offset, scale, 1e-8)
 
     def create_upsample_layer(self, prev_layer, new_size):
-        resized = tf.image.resize_images(prev_layer, [new_size, new_size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        resized = tf.image.resize_images(prev_layer, new_size, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         return resized
 
     """
@@ -165,7 +165,7 @@ class NeuralNet(object):
         # [2000, 1]
 
 
-    def _buildCostFunctions(self, startLearningRate=2e-4, beta1=0.5, rateDecay=0.996, minLearningRate=1e-5):
+    def _buildCostFunctions(self, startLearningRate=2e-4, beta1=0.5, rateDecay=0.996, minLearningRate=5e-5):
         #find current learning rate
         dis_step = tf.Variable(0, trainable=False)
         gen_step = tf.Variable(0, trainable=False)

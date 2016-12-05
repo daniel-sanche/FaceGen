@@ -19,7 +19,7 @@ def randomSample(network, sampleSize, gender=None, age=None, saveName=None):
     noiseVec = np.random.uniform(-1, 1, [sampleSize, network.noise_size]).astype(np.float32)
     samples =  network.getSample(noiseVec, genderVec, ageVec)
     if saveName is not None:
-        numRows = ceil(sqrt(sampleSize))
+        numRows = int(ceil(sqrt(sampleSize)))
         visualizeImages(samples, numRows=numRows, fileName=saveName)
     return samples
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     image_size = 64
     numPerBin = 4
     batch_size = numPerBin * 8 * 2
-    noise_size = 500
+    noise_size = 100
 
     # start training
     network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)

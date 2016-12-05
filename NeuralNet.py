@@ -157,11 +157,11 @@ class NeuralNet(object):
         dis_combined_vec = tf.concat(1, [dis_pool2_flattened,
                                          tf.concat(0, [self.input_sex, self.input_sex]),
                                          tf.concat(0, [self.input_age, self.input_age])])
-        dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 1000,
+        dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 5000,
                                                                       16 * 16 * conv2Size+2,
                                                                       name_prefix="dis_fc")
         # [2000, 1000]
-        self.dis_output = self.create_output_layer(dis_fully_connected1,1000,1,name_prefix="dis_out")
+        self.dis_output = self.create_output_layer(dis_fully_connected1,5000,1,name_prefix="dis_out")
         # [2000, 1]
 
 
@@ -226,7 +226,7 @@ class NeuralNet(object):
                      self.dis_input_image: truthImages}
         errFake, errReal, gen_cost = self.session.run((self.dis_loss_fake, self.dis_loss_real, self.gen_loss), feed_dict=feed_dict)
         dis_cost = errFake + errReal
-        if gen_cost/dis_cost < 3:
+        if gen_cost/dis_cost < 2:
             self.session.run((self.dis_train), feed_dict=feed_dict)
         if dis_cost/gen_cost < 3:
             self.session.run((self.gen_train), feed_dict=feed_dict)

@@ -15,7 +15,7 @@ def randomSample(network, sampleSize, gender=None, age=None, saveName=None):
     else:
         ageVec = np.random.randint(15, 75, size=sampleSize)
     genderVec = ((genderVec * 2) - 1).astype(np.float32).reshape([-1, 1])
-    ageVec = (((ageVec / 100) * 2) - 1).astype(np.float32).reshape([-1, 1])
+    ageVec = (((ageVec / 100.0) * 2) - 1).astype(np.float32).reshape([-1, 1])
     noiseVec = np.random.uniform(-1, 1, [sampleSize, network.noise_size]).astype(np.float32)
     samples =  network.getSample(noiseVec, genderVec, ageVec)
     if saveName is not None:
@@ -23,7 +23,7 @@ def randomSample(network, sampleSize, gender=None, age=None, saveName=None):
         visualizeImages(samples, numRows=numRows, fileName=saveName)
     return samples
 
-def ageSample(network, numImages, minAge=25, maxAge=65, gender=None, noiseArr=None, saveName=None):
+def ageSample(network, numImages, minAge=25, maxAge=75, gender=None, noiseArr=None, saveName=None):
     if gender is None:
         gender = np.random.randint(2, size=1)
     if noiseArr is None:
@@ -39,10 +39,8 @@ def ageSample(network, numImages, minAge=25, maxAge=65, gender=None, noiseArr=No
 
 if __name__ == "__main__":
     # initialize the data loader
-    saveSteps = 10
     image_size = 64
-    numPerBin = 4
-    batch_size = numPerBin * 8 * 2
+    batch_size = 64
     noise_size = 100
 
     # start training

@@ -37,7 +37,7 @@ def detectErrorRate(imageMat):
         if not foundFace:
             errMat[numFound, :, ::] = thisImage
             numFound = numFound + 1
-    print ("Error Rate: "  + str(float(numFound)/numImages) + "% (" + str(numFound) + "/" + str(numImages) +")")
+    print ("Error Rate: "  + str(float(numFound*100)/numImages) + "% (" + str(numFound) + "/" + str(numImages) +")")
     return errMat[:numFound, :, :, :]
 
 

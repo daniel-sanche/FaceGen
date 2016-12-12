@@ -30,7 +30,7 @@ if __name__ == "__main__":
         batchAge = batchDict["age"]
         batchSex = batchDict["sex"]
         if i % printInterval == 0:
-            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge)
+            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge, "./logs.txt")
         network.train(batchImage, batchSex, batchAge)
         if i % saveInterval == 0 and i != 0:
             network.saveCheckpoint(saveInterval)

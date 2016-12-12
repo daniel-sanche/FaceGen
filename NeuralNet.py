@@ -4,7 +4,7 @@ from math import ceil
 import numpy as np
 from Visualization import visualizeImages, csvFromOutput
 from enum import Enum
-from os import walk, path, mkdir
+from os import walk, path, mkdir, remove
 import pandas as pd
 import pickle
 
@@ -241,13 +241,25 @@ class NeuralNet(object):
         if dis_cost/gen_cost < 3:
             self.session.run((self.gen_train), feed_dict=feed_dict)
 
-    def printStatus(self,num, truthImages, truthGenders, truthAges):
+    def printStatus(self,num, truthImages, truthGenders, truthAges, logFilePath=None):
         feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,
                      self.dis_input_image: truthImages}
 
         runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.current_rate)
         errFake, errReal, errGen, rate = self.session.run(runList, feed_dict=feed_dict)
-        print("round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen) + " learning_rate: " + str(rate))
+        printStr = "round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen) + " learning_rate: " + str(rate)
+        print(printStr)
+        if logFilePath is not None:
+            if path.exists(logFilePath) and num==0:
+                #overwrite old file
+                remove(logFilePath)
+            firstWrite = not path.exists(logFilePath)
+            file = open(logFilePath, "a")
+            if firstWrite:
+                file.write("round\td_loss\tg_loss\tlearning_rate\n")
+            file.write(str(num)+"\t"+str(errFake+errReal)+"\t"+str(errGen)+"\t"+str(rate)+'\n')
+            file.close()
+
 
         #render images to files
         printSexLabels = np.repeat([-1,1],self.batch_size/2).reshape([self.batch_size, 1])

@@ -106,13 +106,13 @@ class NeuralNet(object):
         self.input_noise = tf.placeholder(tf.float32, shape=[self.batch_size, self.noise_size])
         combined_inputs = tf.concat(1, [self.input_sex, self.input_age, self.input_noise])
         # [1000, 102]
-        gen_fully_connected1 = self.create_fully_connected_layer(combined_inputs, 1024,
+        gen_fully_connected1 = self.create_fully_connected_layer(combined_inputs, 5000,
                                                                  self.noise_size+2,
                                                                  name_prefix="gen_fc1")
-        gen_fc1_norm = self.create_batchnorm_layer(gen_fully_connected1, [1024], name_prefix="gen_fc1")
-        # [1000, 1024]
+        gen_fc1_norm = self.create_batchnorm_layer(gen_fully_connected1, [5000], name_prefix="gen_fc1")
+        # [1000, 5000]
         gen_fully_connected2 = self.create_fully_connected_layer(gen_fc1_norm, 8 * 8 * 64,
-                                                                 1024,
+                                                                 5000,
                                                                  name_prefix="gen_fc2")
         # [1000, 4096]
         gen_squared_fc2 = tf.reshape(gen_fully_connected2, [self.batch_size, 8, 8, 64])
@@ -167,11 +167,11 @@ class NeuralNet(object):
         dis_combined_vec = tf.concat(1, [dis_flattened,
                                          tf.concat(0, [self.input_sex, self.input_sex]),
                                          tf.concat(0, [self.input_age, self.input_age])])
-        dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 1024,
+        dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 5000,
                                                                       (8*8*64)+2,
                                                                       name_prefix="dis_fc")
-        # [2000, 1024]
-        self.dis_output = self.create_output_layer(dis_fully_connected1,1024,1,name_prefix="dis_out")
+        # [2000, 5000]
+        self.dis_output = self.create_output_layer(dis_fully_connected1,5000,1,name_prefix="dis_out")
         # [2000, 1]
 
 

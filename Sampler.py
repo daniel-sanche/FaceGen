@@ -74,5 +74,5 @@ if __name__ == "__main__":
     network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
 
     randomSample(network, 36, saveName="sample.png")
-    ageSampleMultiple(network, 10, 4, saveName="age_sample.png")
+    ageSampleMultiple(network, 10, 3, saveName="age_sample.png")
     sexSample(network, 10, saveName="sex_sample.png")

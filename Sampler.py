@@ -23,18 +23,27 @@ def randomSample(network, sampleSize, gender=None, age=None, saveName=None):
         visualizeImages(samples, numRows=numRows, fileName=saveName)
     return samples
 
-def ageSample(network, numImages, minAge=25, maxAge=75, gender=None, noiseArr=None, saveName=None):
+def ageSample(network, numAges, minAge=25, maxAge=75, gender=None, noiseArr=None, saveName=None):
     if gender is None:
         gender = np.random.randint(2, size=1)
     if noiseArr is None:
         noiseArr = np.random.uniform(-1, 1, [1, network.noise_size]).astype(np.float32)
-    ageMat = (((np.linspace(minAge, maxAge, numImages, dtype=int) / 100.0) * 2) - 1).reshape([numImages, 1])
-    genderMat = ((np.ones([numImages, 1]) * gender) * 2) - 1
-    noiseMat = np.ones([numImages, network.noise_size]) * noiseArr
+    ageMat = (((np.linspace(minAge, maxAge, numAges, dtype=int) / 100.0) * 2) - 1).reshape([numAges, 1])
+    genderMat = ((np.ones([numAges, 1]) * gender) * 2) - 1
+    noiseMat = np.ones([numAges, network.noise_size]) * noiseArr
     samples = network.getSample(noiseMat, genderMat, ageMat)
     if saveName is not None:
         visualizeImages(samples, numRows=1, fileName=saveName)
     return samples
+
+def ageSampleMultiple(network, numAges, numSamples, minAge=25, maxAge=75, saveName=None):
+    combinedMat = np.zeros([numSamples*numAges, 64, 64, 3])
+    for i in range(numSamples):
+        result = ageSample(network, numAges, minAge=minAge, maxAge=maxAge, saveName=None)
+        combinedMat[numAges*i:numAges*(i+1),:,:,:] = result
+    if saveName is not None:
+        visualizeImages(combinedMat, numRows=numSamples, fileName=saveName)
+    return combinedMat
 
 
 if __name__ == "__main__":
@@ -47,4 +56,4 @@ if __name__ == "__main__":
     network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
 
     randomSample(network, 36, saveName="sample.png")
-    ageSample(network, 10, saveName="age_sample.png")
+    ageSampleMultiple(network, 10, 4, saveName="age_sample.png")

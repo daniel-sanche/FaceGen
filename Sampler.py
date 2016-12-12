@@ -45,6 +45,24 @@ def ageSampleMultiple(network, numAges, numSamples, minAge=25, maxAge=75, saveNa
         visualizeImages(combinedMat, numRows=numSamples, fileName=saveName)
     return combinedMat
 
+def sexSample(network, numSamples, age=None, saveName=None):
+    if age is not None:
+        ageVec = np.ones([numSamples, 1]) * age
+    else:
+        ageVec = np.random.randint(15, 75, size=numSamples)
+    ageVec = (((ageVec / 100.0) * 2) - 1).astype(np.float32).reshape([-1, 1])
+    noiseArr = np.random.uniform(-1, 1, [numSamples, network.noise_size]).astype(np.float32)
+    genderArr = np.array([0,1])
+
+
+    noiseArr = np.concatenate([noiseArr, noiseArr])
+    ageVec = np.concatenate([ageVec, ageVec])
+    genderArr = genderArr.repeat(numSamples).reshape(numSamples*2, 1)
+
+    samples = network.getSample(noiseArr, genderArr, ageVec)
+    if saveName is not None:
+        visualizeImages(samples, numRows=2, fileName=saveName)
+    return samples
 
 if __name__ == "__main__":
     # initialize the data loader
@@ -57,3 +75,4 @@ if __name__ == "__main__":
 
     randomSample(network, 36, saveName="sample.png")
     ageSampleMultiple(network, 10, 4, saveName="age_sample.png")
+    sexSample(network, 10, saveName="sex_sample.png")

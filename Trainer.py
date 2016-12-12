@@ -29,12 +29,14 @@ if __name__ == "__main__":
         batchImage = batchDict["image"]
         batchAge = batchDict["age"]
         batchSex = batchDict["sex"]
-        if i % printInterval == 0:
+        if i % printInterval == 0 and (i != 0 or loadedCheckpoint == 0):
             if i % saveInterval == 0:
                 saveFile = "./logs.tsv"
+                detector = True
             else:
                 saveFile = None
-            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge, saveFile)
+                detector = False
+            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge, detectFaces=detector, logFilePath=saveFile)
         network.train(batchImage, batchSex, batchAge)
         if i % saveInterval == 0 and i != 0:
             network.saveCheckpoint(saveInterval)

@@ -4,7 +4,7 @@ import numpy as np
 from Visualization import visualizeImages
 import glob
 from math import ceil
-from NeuralNet import NeuralNet
+import NeuralNet
 from Sampler import randomSample
 
 def detectedFace(image, cascadePath="./cascades"):
@@ -25,7 +25,7 @@ def detectedFace(image, cascadePath="./cascades"):
             return True
     return False
 
-def detectErrorRate(imageMat):
+def detectErrorRate(imageMat, printResults=True):
     # convert to 8 bit int
     imageSet = ((imageMat + 1) * (255 / 2)).astype(np.uint8)
     numImages = imageSet.shape[0]
@@ -37,11 +37,12 @@ def detectErrorRate(imageMat):
         if not foundFace:
             errMat[numFound, :, ::] = thisImage
             numFound = numFound + 1
-    print ("Error Rate: "  + str(float(numFound*100)/numImages) + "% (" + str(numFound) + "/" + str(numImages) +")")
-    return errMat[:numFound, :, :, :]
+    if printResults:
+        print ("Error Rate: "  + str(float(numFound*100)/numImages) + "% (" + str(numFound) + "/" + str(numImages) +")")
+    return float(numFound)/numImages, errMat[:numFound, :, :, :]
 
 
-def errorInDataset(imageCount):
+def errorInDataset(imageCount, printResults=True):
     datasetDir = "/home/sanche/Datasets/IMDB-WIKI"
     csvPath = "./dataset.csv"
     indicesPath = "./indices.p"
@@ -54,19 +55,19 @@ def errorInDataset(imageCount):
     imageSet = batchDict["image"]
     #shuffle, so if some are trimmed, we are randomly from all bins
     np.random.shuffle(imageSet)
-    detectErrorRate(imageSet[:imageCount,:,:,:])
+    return detectErrorRate(imageSet[:imageCount,:,:,:], printResults=printResults)
 
-def errorInGenerated(imageCount):
+def errorInGenerated(imageCount, printResults=True):
     # initialize the data loader
     image_size = 64
     batch_size = 64
     noise_size = 100
 
     # start training
-    network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
+    network = NeuralNet.NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
 
     sample = randomSample(network, imageCount)
-    detectErrorRate(sample)
+    return detectErrorRate(sample, printResults=printResults)
 
 if __name__ == "__main__":
     sampleSize = 10000

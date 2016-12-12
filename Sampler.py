@@ -1,4 +1,4 @@
-from NeuralNet import  NeuralNet
+import  NeuralNet
 from DataLoader import  LoadFilesData, DataLoader
 from Visualization import visualizeImages
 from math import ceil, sqrt
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     noise_size = 100
 
     # start training
-    network = NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
+    network = NeuralNet.NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
 
     randomSample(network, 36, saveName="sample.png")
     ageSampleMultiple(network, 10, 3, saveName="age_sample.png")

@@ -251,7 +251,7 @@ class NeuralNet(object):
         errFake, errReal, errGen, rate = self.session.run(runList, feed_dict=feed_dict)
         printStr = "round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen) + " learning_rate: " + str(rate)
         if detectFaces:
-            samples = Sampler.randomSample(self, 100)
+            samples = Sampler.randomSample(self, 300)
             err, _ = FaceDetector.detectErrorRate(samples, False)
             faceAcc = str((1-err))
             printStr = printStr + " faces_detected: " + faceAcc

@@ -29,8 +29,9 @@ if __name__ == "__main__":
         batchImage = batchDict["image"]
         batchAge = batchDict["age"]
         batchSex = batchDict["sex"]
-        if i % printInterval == 0 and (i != 0 or loadedCheckpoint == 0):
-            if i % saveInterval == 0:
+        if i % printInterval == 0:
+            if (i != 0 or loadedCheckpoint == 0):
+                #if we are repeating a previous one, skip logging to csv
                 saveFile = "./logs.tsv"
                 detector = True
             else:

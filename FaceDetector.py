@@ -4,6 +4,16 @@ import numpy as np
 from Visualization import visualizeImages
 import glob
 
+"""
+Attempts to detect a face in an image using the OpenCV Haar Cascade
+
+Params
+    image:  the image to detect a face in
+    cascadePath:    the directory containing cascade cml files to match against
+
+Returns
+    0:  a bool indicating whether a face was found
+"""
 def detectedFace(image, cascadePath="./cascades"):
     for thisCascade in glob.glob(cascadePath+"/*.xml"):
         #convert to grayscale

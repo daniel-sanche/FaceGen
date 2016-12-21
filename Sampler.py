@@ -4,7 +4,19 @@ from Visualization import visualizeImages
 from math import ceil, sqrt
 import numpy as np
 
+"""
+Generate a sample from the network
 
+Params
+    network:    the neural network to sample from
+    sampleSize: the number of images to create
+    gender:     optionally specify the gender(s) to generate. int, array, or None
+    age:        optionally specify the age(s) to generate. int, array, or None
+    saveName:   if specified, will save a visualization image grid using this name
+
+Returns
+    0:  a nupy array of the results generated
+"""
 def randomSample(network, sampleSize, gender=None, age=None, saveName=None):
     if gender is not None:
         genderVec = np.ones([sampleSize, 1]) * (gender != 0)

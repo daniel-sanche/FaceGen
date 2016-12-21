@@ -71,8 +71,8 @@ class NeuralNet(object):
         self.image_size = image_size
         self.noise_size=noise_size
 
-        self._buildGenerator(firstImageSize=8)
-        self._buildDiscriminator(conv1Size=64, conv2Size=32, fcSize=49)
+        self._buildGenerator()
+        self._buildDiscriminator()
         self._buildCostFunctions(startLearningRate=learningRate)
 
         #create a constant noise vector for printing, so we can watch images improve over time
@@ -98,17 +98,16 @@ class NeuralNet(object):
         pd.set_option('display.float_format', lambda x: '%.4f' % x)
         pd.set_option('expand_frame_repr', False)
 
-    def _buildGenerator(self, firstImageSize=8):
-
+    def _buildGenerator(self):
         # build the generator network
         self.input_sex = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         self.input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         self.input_noise = tf.placeholder(tf.float32, shape=[self.batch_size, self.noise_size])
         combined_inputs = tf.concat(1, [self.input_sex, self.input_age, self.input_noise])
-        gen_fully_connected1 = self.create_fully_connected_layer(combined_inputs, firstImageSize * firstImageSize * 64,
+        gen_fully_connected1 = self.create_fully_connected_layer(combined_inputs, 8 * 8 * 64,
                                                                  self.noise_size+2,
                                                                  name_prefix="gen_fc")
-        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, firstImageSize, firstImageSize, 64])
+        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, 8, 8, 64])
         gen_squared_fc1_norm = self.create_batchnorm_layer(gen_squared_fc1, [8,8,64], name_prefix="gen_fc")
         # s[1000,8,8,64]
         gen_unpool1 = self.create_upsample_layer(gen_squared_fc1_norm, 16)
@@ -129,7 +128,7 @@ class NeuralNet(object):
         self.gen_output = tf.nn.tanh(gen_unconv3_norm)
         # [1000,12288]
 
-    def _buildDiscriminator(self, conv1Size, conv2Size, fcSize):
+    def _buildDiscriminator(self):
         self.dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, 64, 64, 3])
         dis_combined_inputs = tf.concat(0, [self.gen_output, self.dis_input_image])
         #[2000, 64, 64, 3]
@@ -144,11 +143,11 @@ class NeuralNet(object):
         combined_channels = tf.concat(3, [dis_combined_inputs, sex_channel, age_channel])
 
         # [2000, 64, 64, 3]
-        dis_conv1 = self.create_conv_layer(combined_channels, conv1Size, 5, name_prefix="dis_conv1")
+        dis_conv1 = self.create_conv_layer(combined_channels, 64, 5, name_prefix="dis_conv1")
         # [2000, 64, 64, 64]
         dis_pool1 = self.create_max_pool_layer(dis_conv1)
         # [2000, 32, 32, 64]
-        dis_conv2 = self.create_conv_layer(dis_pool1, conv2Size, conv1Size, name_prefix="dis_conv2")
+        dis_conv2 = self.create_conv_layer(dis_pool1, 32, 64, name_prefix="dis_conv2")
         # [2000, 32, 32, 32]
         dis_pool2 = self.create_max_pool_layer(dis_conv2)
         # [2000, 16, 16, 32]
@@ -158,7 +157,7 @@ class NeuralNet(object):
                                          tf.concat(0, [self.input_sex, self.input_sex]),
                                          tf.concat(0, [self.input_age, self.input_age])])
         dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 1000,
-                                                                      16 * 16 * conv2Size+2,
+                                                                      16 * 16 * 32+2,
                                                                       name_prefix="dis_fc")
         # [2000, 1000]
         self.dis_output = self.create_output_layer(dis_fully_connected1,1000,1,name_prefix="dis_out")

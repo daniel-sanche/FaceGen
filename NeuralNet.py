@@ -203,13 +203,21 @@ class NeuralNet(object):
     Public Functions (Interface)
     """
 
+    """
+    saves the state of the network in self.checkpoint_dir
+
+    Params
+        runsSinceLast:  the number of training rounds that have been completed since the last checkpoint
+    """
     def saveCheckpoint(self, runsSinceLast):
         if runsSinceLast > 0:
             self.checkpoint_num = self.checkpoint_num + runsSinceLast
             self.saver.save(self.session, self.checkpoint_dir + "/" + self.checkpoint_name, self.checkpoint_num)
             print(self.checkpoint_name + " " + str(self.checkpoint_num) + " saved")
 
-
+    """
+    Restores the latest checkpoint saved in self.checkpoint_dir
+    """
     def restoreNewestCheckpoint(self):
         if not path.exists(self.checkpoint_dir):
             mkdir(self.checkpoint_dir)
@@ -230,6 +238,15 @@ class NeuralNet(object):
             print("no checkpoint found named " + self.checkpoint_name + " in " + self.checkpoint_dir)
         self.checkpoint_num = highest_found
 
+    """
+    trains the network. Both generator and discriminator have a chance to be trained
+    training will be skipped if one network is too powerful compared to the other
+
+    Params
+        truthImages:    an batch of images from the dataset
+        truthGenders:   the corresponding sex values of the truthImages
+        truthAges:      the corresponding age values of the truthImages
+    """
     def train(self, truthImages, truthGenders, truthAges):
         noise_batch = np.random.uniform(-1, 1, [self.batch_size, self.noise_size]).astype(np.float32)
         feed_dict = {self.input_noise: noise_batch, self.input_age: truthAges, self.input_sex: truthGenders,
@@ -241,6 +258,18 @@ class NeuralNet(object):
         if dis_cost/gen_cost < 3:
             self.session.run((self.gen_train), feed_dict=feed_dict)
 
+    """
+    prints the current state of the neural network, primarily cost values
+
+    Params
+        num:            the number of training rounds the network has gone through
+        truthImages:    an batch of images from the dataset
+        truthGenders:   the corresponding sex values of the truthImages
+        truthAges:      the corresponding age values of the truthImages
+        detectFaces:    if true, will sample the network and find how many images have detectable faces
+        logFilePath:    a path to a file to log results in. If false, results will be printed to the
+                        console, but not saved
+    """
     def printStatus(self,num, truthImages, truthGenders, truthAges, detectFaces=False, logFilePath=None):
         feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,
                      self.dis_input_image: truthImages}
@@ -280,6 +309,17 @@ class NeuralNet(object):
         truthImages = (truthImages + 1.0) / 2.0
         visualizeImages(truthImages, numRows=8, fileName="last_batch.png")
 
+    """
+    Generates a sample of images from the neural net
+
+    Params
+        noiseMat:   a numpy array of noise vectors
+        genderMat:  a numpy array of gender values
+        ageMat:     a numpy array of age values
+
+    Returns
+        0:  a nupy array of face images ([n,64,64,3])
+    """
     def getSample(self, noiseMat, genderMat, ageMat):
         sampleSize = noiseMat.shape[0]
         numRuns = int(ceil(sampleSize / float(self.batch_size)))

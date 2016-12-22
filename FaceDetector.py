@@ -3,6 +3,9 @@ from DataLoader import LoadFilesData, DataLoader
 import numpy as np
 from Visualization import visualizeImages
 import glob
+from math import ceil
+import NeuralNet
+from Sampler import randomSample
 
 """
 Attempts to detect a face in an image using the OpenCV Haar Cascade
@@ -32,31 +35,55 @@ def detectedFace(image, cascadePath="./cascades"):
             return True
     return False
 
-if __name__ == "__main__":
+def detectErrorRate(imageMat, printResults=True):
+    # convert to 8 bit int
+    imageSet = ((imageMat + 1) * (255 / 2)).astype(np.uint8)
+    numImages = imageSet.shape[0]
+    numFound = 0
+    errMat = np.zeros_like(imageSet)
+    for i in range(numImages):
+        thisImage = imageSet[i, :, :, :]
+        foundFace = detectedFace(thisImage)
+        if not foundFace:
+            errMat[numFound, :, ::] = thisImage
+            numFound = numFound + 1
+    if printResults:
+        print ("Error Rate: "  + str(float(numFound*100)/numImages) + "% (" + str(numFound) + "/" + str(numImages) +")")
+    return float(numFound)/numImages, errMat[:numFound, :, :, :]
+
+
+def errorInDataset(imageCount, printResults=True):
     datasetDir = "/home/sanche/Datasets/IMDB-WIKI"
     csvPath = "./dataset.csv"
     indicesPath = "./indices.p"
     csvdata, indices = LoadFilesData(datasetDir, csvPath, indicesPath)
-
-    loader = DataLoader(indices, csvdata, numPerBin=10, imageSize=64, numWorkerThreads=10, bufferMax=20,
+    numPerBin = int(ceil(imageCount/16.0))
+    loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=64, numWorkerThreads=10, bufferMax=20,
                         debugLogs=False, useCached=False)
     loader.start()
-
     batchDict = loader.getData()
     imageSet = batchDict["image"]
-    # convert to 8 bit int
-    imageSet = ((imageSet + 1) * (255 / 2)).astype(np.uint8)
+    #shuffle, so if some are trimmed, we are randomly from all bins
+    np.random.shuffle(imageSet)
+    return detectErrorRate(imageSet[:imageCount,:,:,:], printResults=printResults)
 
-    numFound = 0
-    errMat = np.zeros_like(imageSet)
-    for i in range(imageSet.shape[0]):
-        thisImage = imageSet[i, :,:,:]
-        foundFace = detectedFace(thisImage)
-        if not foundFace:
-            errMat[numFound, :, : :] = thisImage
-            numFound = numFound + 1
-    print ("Num Error Images Found: " + str(numFound) + "/" + str(imageSet.shape[0]))
-    if numFound > 0:
-        visualizeImages(errMat[:numFound, :, :, :], numRows=1, fileName="errorImages.png")
+def errorInGenerated(imageCount, printResults=True):
+    # initialize the data loader
+    image_size = 64
+    batch_size = 64
+    noise_size = 100
+
+    # start training
+    network = NeuralNet.NeuralNet(batch_size=batch_size, image_size=image_size, noise_size=noise_size, learningRate=5e-4)
+
+    sample = randomSample(network, imageCount)
+    return detectErrorRate(sample, printResults=printResults)
+
+if __name__ == "__main__":
+    sampleSize = 10000
+
+    errorInDataset(sampleSize)
+    errorInGenerated(sampleSize)
+
 
 

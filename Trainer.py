@@ -13,7 +13,7 @@ if __name__ == "__main__":
     image_size = 64
     numPerBin = 4
     batch_size = numPerBin * 8 * 2
-    noise_size = 500
+    noise_size = 100
     loader = DataLoader(indices, csvdata, numPerBin=numPerBin, imageSize=image_size, numWorkerThreads=10, bufferMax=20, debugLogs=False)
     loader.start()
 
@@ -30,7 +30,14 @@ if __name__ == "__main__":
         batchAge = batchDict["age"]
         batchSex = batchDict["sex"]
         if i % printInterval == 0:
-            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge)
+            if (i != 0 or loadedCheckpoint == 0):
+                #if we are repeating a previous one, skip logging to csv
+                saveFile = "./logs.tsv"
+                detector = True
+            else:
+                saveFile = None
+                detector = False
+            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge, detectFaces=detector, logFilePath=saveFile)
         network.train(batchImage, batchSex, batchAge)
         if i % saveInterval == 0 and i != 0:
             network.saveCheckpoint(saveInterval)

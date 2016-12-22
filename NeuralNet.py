@@ -4,9 +4,11 @@ from math import ceil
 import numpy as np
 from Visualization import visualizeImages, csvFromOutput
 from enum import Enum
-from os import walk, path, mkdir
+from os import walk, path, mkdir, remove
 import pandas as pd
 import pickle
+import FaceDetector
+import Sampler
 
 class NeuralNet(object):
     """"""
@@ -59,7 +61,7 @@ class NeuralNet(object):
         return tf.nn.batch_normalization(prev_layer, mean, variance, offset, scale, 1e-8)
 
     def create_upsample_layer(self, prev_layer, new_size):
-        resized = tf.image.resize_images(prev_layer, [new_size, new_size], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        resized = tf.image.resize_images(prev_layer, new_size, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         return resized
 
     """
@@ -104,13 +106,20 @@ class NeuralNet(object):
         self.input_age = tf.placeholder(tf.float32, shape=[self.batch_size, 1])
         self.input_noise = tf.placeholder(tf.float32, shape=[self.batch_size, self.noise_size])
         combined_inputs = tf.concat(1, [self.input_sex, self.input_age, self.input_noise])
-        gen_fully_connected1 = self.create_fully_connected_layer(combined_inputs, 8 * 8 * 64,
+        # [1000, 102]
+        gen_fully_connected1 = self.create_fully_connected_layer(combined_inputs, 5000,
                                                                  self.noise_size+2,
-                                                                 name_prefix="gen_fc")
-        gen_squared_fc1 = tf.reshape(gen_fully_connected1, [self.batch_size, 8, 8, 64])
-        gen_squared_fc1_norm = self.create_batchnorm_layer(gen_squared_fc1, [8,8,64], name_prefix="gen_fc")
-        # s[1000,8,8,64]
-        gen_unpool1 = self.create_upsample_layer(gen_squared_fc1_norm, 16)
+                                                                 name_prefix="gen_fc1")
+        gen_fc1_norm = self.create_batchnorm_layer(gen_fully_connected1, [5000], name_prefix="gen_fc1")
+        # [1000, 5000]
+        gen_fully_connected2 = self.create_fully_connected_layer(gen_fc1_norm, 8 * 8 * 64,
+                                                                 5000,
+                                                                 name_prefix="gen_fc2")
+        # [1000, 4096]
+        gen_squared_fc2 = tf.reshape(gen_fully_connected2, [self.batch_size, 8, 8, 64])
+        # [1000, 8, 8, 64]
+        gen_squared_fc2_norm = self.create_batchnorm_layer(gen_squared_fc2, [8,8,64], name_prefix="gen_fc2")
+        gen_unpool1 = self.create_upsample_layer(gen_squared_fc2_norm, 16)
         # [1000,16,16,64]
         gen_unconv1 = self.create_deconv_layer(gen_unpool1, 32, 64, name_prefix="gen_unconv1")
         gen_unconv1_norm = self.create_batchnorm_layer(gen_unconv1, [16, 16, 32],name_prefix="gen_unconv1")
@@ -123,10 +132,9 @@ class NeuralNet(object):
         gen_unpool3 = self.create_upsample_layer(gen_unconv2_norm, 64)
         # [1000,64,64,16]
         gen_unconv3 = self.create_deconv_layer(gen_unpool3, 3, 16, name_prefix="gen_unconv3")
-        gen_unconv3_norm = self.create_batchnorm_layer(gen_unconv3, [64,64,3],name_prefix="gen_unconv3")
         # [1000,64,64,3]
+        gen_unconv3_norm = self.create_batchnorm_layer(gen_unconv3, [64,64,3],name_prefix="gen_unconv3")
         self.gen_output = tf.nn.tanh(gen_unconv3_norm)
-        # [1000,12288]
 
     def _buildDiscriminator(self):
         self.dis_input_image = tf.placeholder(tf.float32, shape=[self.batch_size, 64, 64, 3])
@@ -142,29 +150,33 @@ class NeuralNet(object):
         age_channel = tf.reshape(age_channel, [self.batch_size * 2, 64, 64, 1])
         combined_channels = tf.concat(3, [dis_combined_inputs, sex_channel, age_channel])
 
-        # [2000, 64, 64, 3]
-        dis_conv1 = self.create_conv_layer(combined_channels, 64, 5, name_prefix="dis_conv1")
-        # [2000, 64, 64, 64]
+        # [2000, 64, 64, 5]
+        dis_conv1 = self.create_conv_layer(combined_channels, 16, 5, name_prefix="dis_conv1")
+        # [2000, 64, 64, 16]
         dis_pool1 = self.create_max_pool_layer(dis_conv1)
-        # [2000, 32, 32, 64]
-        dis_conv2 = self.create_conv_layer(dis_pool1, 32, 64, name_prefix="dis_conv2")
+        # [2000, 32, 32, 16]
+        dis_conv2 = self.create_conv_layer(dis_pool1, 32, 16, name_prefix="dis_conv2")
         # [2000, 32, 32, 32]
         dis_pool2 = self.create_max_pool_layer(dis_conv2)
         # [2000, 16, 16, 32]
-        dis_pool2_flattened = tf.reshape(dis_pool2, [self.batch_size*2, -1])
-        # [2000, 8192]
-        dis_combined_vec = tf.concat(1, [dis_pool2_flattened,
+        dis_conv3 = self.create_conv_layer(dis_pool2, 64, 32, name_prefix="dis_conv3")
+        # [2000, 16, 16, 64]
+        dis_pool3 = self.create_max_pool_layer(dis_conv3)
+        # [2000, 8, 8, 64]
+        dis_flattened = tf.reshape(dis_pool3, [self.batch_size*2, -1])
+        # [2000, 4096]
+        dis_combined_vec = tf.concat(1, [dis_flattened,
                                          tf.concat(0, [self.input_sex, self.input_sex]),
                                          tf.concat(0, [self.input_age, self.input_age])])
-        dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 1000,
-                                                                      16 * 16 * 32+2,
+        dis_fully_connected1 = self.create_fully_connected_layer(dis_combined_vec, 5000,
+                                                                      (8*8*64)+2,
                                                                       name_prefix="dis_fc")
-        # [2000, 1000]
-        self.dis_output = self.create_output_layer(dis_fully_connected1,1000,1,name_prefix="dis_out")
+        # [2000, 5000]
+        self.dis_output = self.create_output_layer(dis_fully_connected1,5000,1,name_prefix="dis_out")
         # [2000, 1]
 
 
-    def _buildCostFunctions(self, startLearningRate=2e-4, beta1=0.5, rateDecay=0.996, minLearningRate=1e-5):
+    def _buildCostFunctions(self, startLearningRate=2e-4, beta1=0.5, rateDecay=0.996, minLearningRate=5e-5):
         #find current learning rate
         dis_step = tf.Variable(0, trainable=False)
         gen_step = tf.Variable(0, trainable=False)
@@ -225,19 +237,36 @@ class NeuralNet(object):
                      self.dis_input_image: truthImages}
         errFake, errReal, gen_cost = self.session.run((self.dis_loss_fake, self.dis_loss_real, self.gen_loss), feed_dict=feed_dict)
         dis_cost = errFake + errReal
-        if gen_cost/dis_cost < 3:
+        if gen_cost/dis_cost < 2:
             self.session.run((self.dis_train), feed_dict=feed_dict)
         if dis_cost/gen_cost < 3:
             self.session.run((self.gen_train), feed_dict=feed_dict)
 
-    def printStatus(self,num, truthImages, truthGenders, truthAges):
+    def printStatus(self,num, truthImages, truthGenders, truthAges, detectFaces=False, logFilePath=None):
         feed_dict = {self.input_noise: self.print_noise, self.input_age: truthAges, self.input_sex: truthGenders,
                      self.dis_input_image: truthImages}
 
         runList = (self.dis_loss_fake, self.dis_loss_real, self.gen_loss, self.current_rate)
         errFake, errReal, errGen, rate = self.session.run(runList, feed_dict=feed_dict)
-        print("round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen) + " learning_rate: " + str(rate))
-
+        printStr = "round: "  + str(num) + " d_loss: " + str(errFake+errReal) + ", g_loss: " + str(errGen) + " learning_rate: " + str(rate)
+        if detectFaces:
+            samples = Sampler.randomSample(self, 300)
+            err, _ = FaceDetector.detectErrorRate(samples, False)
+            faceAcc = str((1-err))
+            printStr = printStr + " faces_detected: " + faceAcc
+        else:
+            faceAcc = "-"
+        print(printStr)
+        if logFilePath is not None:
+            if path.exists(logFilePath) and num==0:
+                #overwrite old file
+                remove(logFilePath)
+            firstWrite = not path.exists(logFilePath)
+            file = open(logFilePath, "a")
+            if firstWrite:
+                file.write("round\td_loss\tg_loss\tlearning_rate\tface_acc\n")
+            file.write(str(num)+"\t"+str(errFake+errReal)+"\t"+str(errGen)+"\t"+str(rate)+"\t"+faceAcc+'\n')
+            file.close()
         #render images to files
         printSexLabels = np.repeat([-1,1],self.batch_size/2).reshape([self.batch_size, 1])
         ageRange = np.linspace(-0.7, 0.7, self.batch_size/2)
@@ -272,5 +301,3 @@ class NeuralNet(object):
             returnMat[currIdx:currIdx + self.batch_size, :, :, :] = resultMat
             currIdx = currIdx + self.batch_size
         return returnMat[:sampleSize, :, :, :]
-
-

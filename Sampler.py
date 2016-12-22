@@ -35,6 +35,22 @@ def randomSample(network, sampleSize, gender=None, age=None, saveName=None):
         visualizeImages(samples, numRows=numRows, fileName=saveName)
     return samples
 
+"""
+Generate a visualization showing the influence of the age variable
+Creates a single row, where each column shows the age value increasing
+
+Params
+    network:    the neural network to sample from
+    numAges:    the number of faces to generate
+    minAge:     the lowest age value to use
+    maxAge:     the largest age value to use
+    gender:     optionally specify the gender(s) to generate. int, or None
+    noiseArr:    the noise values to use, if a specific face is desired
+    saveName:   if specified, will save a visualization image grid using this name
+
+Returns
+    0:  a nupy array of the results generated
+"""
 def ageSample(network, numAges, minAge=25, maxAge=75, gender=None, noiseArr=None, saveName=None):
     if gender is None:
         gender = np.random.randint(2, size=1)
@@ -48,6 +64,24 @@ def ageSample(network, numAges, minAge=25, maxAge=75, gender=None, noiseArr=None
         visualizeImages(samples, numRows=1, fileName=saveName)
     return samples
 
+"""
+Generate a visualization showing the influence of the age variable
+Creates multiple rows, where each column shows the age value increasing
+and each row is an individual face (noise value/gender)
+
+Params
+    network:    the neural network to sample from
+    numAges:    the number of faces to generate
+    numSamples: the number of unique individuals to generate
+    minAge:     the lowest age value to use
+    maxAge:     the largest age value to use
+    gender:     optionally specify the gender(s) to generate. int, or None
+    noiseArr:    the noise values to use, if a specific face is desired
+    saveName:   if specified, will save a visualization image grid using this name
+
+Returns
+    0:  a nupy array of the results generated
+"""
 def ageSampleMultiple(network, numAges, numSamples, minAge=25, maxAge=75, saveName=None):
     combinedMat = np.zeros([numSamples*numAges, 64, 64, 3])
     for i in range(numSamples):
@@ -57,6 +91,20 @@ def ageSampleMultiple(network, numAges, numSamples, minAge=25, maxAge=75, saveNa
         visualizeImages(combinedMat, numRows=numSamples, fileName=saveName)
     return combinedMat
 
+"""
+Generate a visualization showing the influence of the sex variable
+Creates two rows, with famles on the top row and males on the bottom,
+and each column is an individual face (same noice vector and age value)
+
+Params
+    network:    the neural network to sample from
+    numSamples: the number of individuals to generate
+    age:        optionally specify the age(s) to generate. int or None
+    saveName:   if specified, will save a visualization image grid using this name
+
+Returns
+    0:  a nupy array of the results generated
+"""
 def sexSample(network, numSamples, age=None, saveName=None):
     if age is not None:
         ageVec = np.ones([numSamples, 1]) * age

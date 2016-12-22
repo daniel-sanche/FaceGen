@@ -2,8 +2,7 @@ from DataLoader import DataLoader, LoadFilesData
 import tensorflow as tf
 from math import ceil
 import numpy as np
-from Visualization import visualizeImages, csvFromOutput
-from enum import Enum
+from Visualization import visualizeImages
 from os import walk, path, mkdir, remove
 import pandas as pd
 import pickle

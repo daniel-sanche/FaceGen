@@ -1,6 +1,5 @@
 from NeuralNet import  NeuralNet
 from DataLoader import  LoadFilesData, DataLoader
-import numpy as np
 
 if __name__ == "__main__":
     # initialize the data loader
@@ -33,11 +32,9 @@ if __name__ == "__main__":
             if (i != 0 or loadedCheckpoint == 0):
                 #if we are repeating a previous one, skip logging to csv
                 saveFile = "./logs.tsv"
-                detector = True
             else:
                 saveFile = None
-                detector = False
-            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge, detectFaces=detector, logFilePath=saveFile)
+            network.printStatus(i+loadedCheckpoint, batchImage, batchSex, batchAge, logFilePath=saveFile)
         network.train(batchImage, batchSex, batchAge)
         if i % saveInterval == 0 and i != 0:
             network.saveCheckpoint(saveInterval)
